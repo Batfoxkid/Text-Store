@@ -7,6 +7,19 @@
 
 public ItemResult FF2_Use(int client, bool equipped, KeyValues item, const char[] name, int &count)
 {
+	if(GameType != Engine_TF2)
+	{
+		if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
+		{
+			SPrintToClient(client, "Incorrect game type for %s", name);
+		}
+		else
+		{
+			SPrintToClient(client, "This can't be used right now!");
+		}
+		return Item_None;
+	}
+
 	if(GetFeatureStatus(FeatureType_Native, "FF2_GetQueuePoints") != FeatureStatus_Available)
 	{
 		if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
@@ -22,35 +35,47 @@ public ItemResult FF2_Use(int client, bool equipped, KeyValues item, const char[
 	}
 
 	bool used;
+	// Give queue points
 	{
 		int points = item.GetNum("points");
 		if(points)
 		{
 			FF2_SetQueuePoints(client, FF2_GetQueuePoints(client)+points);
+			SPrintToChat(client, "You have %s %i queue point(s)", points<0 ? "lost" : "gained", points);
 			used = true;
 		}
 	}
 
+	// Unlock a boss
+	static char buffer[64];
+	item.GetString("unlock", buffer, sizeof(buffer));
+	if(buffer[0])
 	{
-		static char buffer[64];
-		item.GetNum("unlock", buffer, sizeof(buffer));
 		for(int i; ; i++)
 		{
-			KeyValues kv = FF2_GetSpecialKV(boss, i);
+			KeyValues kv = FF2_GetSpecialKV(i, 1);
 			if(kv == INVALID_HANDLE)
 				break;
 
-			if(!StrEqual
+			static char name[64];
+			kv.GetString("name", name, sizeof(name));
+			if(StrEqual(buffer, name))
+			{
+				kv.SetNum("donator", 0);
+				kv.SetNum("admin", 0);
+				kv.SetNum("owner", 0);
+				kv.SetNum("theme", 0);
+				kv.SetNum("hidden", 0);
+				SPrintToChatAll("%s%s%s is now unlocked for the map duration!", STORE_COLOR2, buffer, STORE_COLOR);
+				used = true;
+				break;
+			}
 		}
+
+		if(!used)
+			SPrintToChat(client, "%s%s%s is not available right now!", STORE_COLOR2, buffer, STORE_COLOR);
 	}
 
-	if(used)
-		return Item_Used;
-	return Item_On;
-}
-
-public Action FF2_OnSpecialSelected(int boss, int &character, char[] characterName, bool preset)
-{
-	
+	return used ? Item_Used : Item_None;
 }
 #endif
