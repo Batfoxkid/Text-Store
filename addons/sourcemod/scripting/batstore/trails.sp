@@ -46,6 +46,8 @@ public ItemResult Trail_Use(int client, bool equipped, KeyValues item, const cha
 	}
 
 	static int color[4];
+	static char buffer[MAX_MATERIAL_LENGTH];
+	item.GetString("material", buffer, MAX_MATERIAL_LENGTH);
 	item.GetColor4("color", color);
 	Trail[client].Setup(buffer, item.GetFloat("width", 10.0), color);
 	RequestFrame(Trail_Create, GetClientUserId(client));
