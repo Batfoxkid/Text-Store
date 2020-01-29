@@ -1,4 +1,5 @@
 #define ITEM_TRAIL	"trail"
+
 enum struct TrailEnum
 {
 	char Path[MAX_MATERIAL_LENGTH];
@@ -29,6 +30,27 @@ enum struct TrailEnum
 }
 TrailEnum Trail[MAXPLAYERS+1];
 int TrailOwner[2048];
+
+public ItemResult Trail_Use(int client, bool equipped, KeyValues item, const char[] name, int &count)
+{
+	if(equipped)
+	{
+		Trail[client].Clear();
+		return Item_Off;
+	}
+
+	if(!IsPlayerAlive(client))
+	{
+		SPrintToChat("You must be alive to equip this!");
+		return Item_None;
+	}
+
+	static int color[4];
+	item.GetColor4("color", color);
+	Trail[client].Setup(buffer, item.GetFloat("width", 10.0), color);
+	RequestFrame(Trail_Create, GetClientUserId(client));
+	return Item_On;
+}
 
 public void Trail_Create(int userid)
 {
@@ -87,7 +109,7 @@ public void Trail_Create(int userid)
 	TrailOwner[entity] = client;
 }
 
-public void Trail_Remove(int client)
+void Trail_Remove(int client)
 {
 	if(Trail[client].Entity && IsValidEdict(Trail[client].Entity))
 	{
@@ -103,7 +125,7 @@ public void Trail_Remove(int client)
 	Trail[client].Entity = 0;
 }
 
-public void Trail_Attach(int entity, int client)
+void Trail_Attach(int entity, int client)
 {
 	static float org[3], ang[3];
 	static float temp[3] = {0.0, 90.0, 0.0};
