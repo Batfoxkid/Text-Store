@@ -2,6 +2,7 @@
 
 #include <sourcemod>
 #include <morecolors>
+#include <sdkhooks>
 #include <batstore>
 
 #pragma newdecls required
@@ -24,9 +25,7 @@
 #define MAX_ATTRIBUTE_LENGTH	256
 #define MAX_CONDITION_LENGTH	256
 #define MAX_CLASSNAME_LENGTH	64
-#define MAX_COOKIE_BYTE		6
-#define MAX_COOKIE_BYTES	42
-#define MAX_COOKIE_LENGTH	((MAX_COOKIE_BYTE+1)*MAX_COOKIE_BYTES)
+#define MAX_PLUGIN_LENGTH	64
 #define MAX_ITEM_LENGTH		48
 #define MAX_DESC_LENGTH		256
 #define MAX_TITLE_LENGTH	192
@@ -50,8 +49,24 @@ enum struct InvEnum
 {
 	bool Equip;
 	int Count;
-};
+}
 InvEnum Inv[MAXPLAYERS+1][MAXITEMS+1];
+
+enum struct ItemEnum
+{
+	bool Hidden;
+	bool Stack;
+	bool Trade;
+	int Cost;
+	int Sell;
+	int Admin;
+	int Slot;
+	int Items[MAXONCE];
+	char Name[MAX_ITEM_LENGTH];
+	char Desc[MAX_DESC_LENGTH];
+	char Plugin[MAX_PLUGIN_LENGTH];
+}
+ItemEnum Item[MAXITEMS+1];
 
 enum struct ClientEnum
 {
@@ -65,7 +80,7 @@ enum struct ClientEnum
 		int i;
 		for(; i<MAXCATEGORIES; i++)
 		{
-			Client[client].Pos[i] = 0;
+			this.Pos[i] = 0;
 		}
 
 		this.Cash = 0;
@@ -193,123 +208,8 @@ enum struct ClientEnum
 			this.Pos[i] = 0;
 		}
 	}
-};
+}
 ClientEnum Client[MAXPLAYERS+1];
-
-enum struct ItemEnum
-{
-	bool Hidden;
-	bool Stack;
-	bool Trade;
-	int Cost;
-	int Sell;
-	int Admin;
-	int Slot;
-	int Items[MAXONCE];
-	char Name[MAX_ITEM_LENGTH];
-	char Desc[MAX_DESC_LENGTH];
-	char Plugin[MAX_PLUGIN_LENGTH];
-
-	void Read()
-	{
-		StoreKv.GetSectionName(this.Name, MAX_ITEM_LENGTH);
-		ReplaceString(this.Name, MAX_ITEM_LENGTH, ";", "");
-
-		char buffer[28];
-		StoreKv.GetString("admin", buffer, 28);
-		this.Admin = ReadFlagString(buffer);
-
-		this.Cost = StoreKv.GetNum("cost");
-		this.Hidden = (!GetRandomInt(0, 5) || StoreKv.GetNum("hidden"));
-		this.Stack = view_as<bool>(StoreKv.GetNum("stack"));
-		this.Trade = view_as<bool>(StoreKv.GetNum("trade"));
-		StoreKv.GetString("plugin", this.Plugin, MAX_PLUGIN_LENGTH);
-		StoreKv.GetString("desc", this.Desc, MAX_DESC_LENGTH, "No Description");
-		this.Sell = StoreKv.GetNum("sell", RoundFloat(this.Cost*SELLRATIO));
-	}
-
-	void Use(int client, int item)
-	{
-		char buffer[256];
-		Handle iter = GetPluginIterator();
-		Handle plugin;
-		while(MorePlugins(iter))
-		{
-			plugin = ReadPlugin(iter);
-			GetPluginFilename(plugin, buffer, 256);
-			if(StrContains(buffer, this.Plugin, false) == -1)
-				continue;
-
-			Function func = GetFunctionByName(plugin, "BatStore_Item");
-			if(func == INVALID_FUNCTION)
-			{
-				if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
-				{
-					SPrintToClient(client, "%s is missing function BatStore_Item from %s!", this.Name, this.Plugin);
-				}
-				else
-				{
-					SPrintToClient(client, "%s can't be used right now!", this.Name);
-				}
-				delete iter;
-				return;
-			}
-
-			StoreKv.Rewind();
-			StoreKv.JumpToKey(this.Name);
-
-			ItemResult result = Item_None;
-			Call_StartFunction(plugin, func);
-			Call_PushCell(client);
-			Call_PushCell(Inv[client][item].Equip);
-			Call_PushCell(StoreKv);
-			Call_PushString(this.Name);
-			Call_PushCellEx(Inv[client][i].Count);
-			Call_Finish(result);
-
-			// Somebody closed the damn kv
-			if(StoreKv == INVALID_HANDLE)
-				SetFailState("'%s' is not allowed to close KeyValues Handle for 'batstore.smx' in 'BatStore_Item'!", buffer);
-
-			switch(result)
-			{
-				case Item_Used:
-				{
-					Inv[client][item].Count--;
-				}
-				case Item_On:
-				{
-					if(!Inv[client][item].Equip)
-					{
-						for(int i=1; i<=MaxItems; i++)
-						{
-							if(this.Slot == Item[i].Slot)
-								Inv[client][item].Equip = false;
-						}
-						Inv[client][item].Equip = true;
-					}
-				}
-				case Item_Off:
-				{
-					Inv[client][item].Equip = false;
-				}
-			}
-			delete iter;
-			return;
-		}
-
-		delete iter;
-		if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
-		{
-			SPrintToClient(client, "%s is missing plugin %s!", this.Name, this.Plugin);
-		}
-		else
-		{
-			SPrintToClient(client, "%s can't be used right now!", this.Name);
-		}
-	}
-};
-ItemEnum Item[MAXITEMS+1];
 
 // SourceMod Events
 
@@ -321,19 +221,27 @@ public Plugin myinfo =
 	version		=	PLUGIN_VERSION
 };
 
-/*public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-}*/
+	CreateNative("BatStore_GetInv", Native_GetInv);
+	CreateNative("BatStore_SetInv", Native_SetInv);
+
+	RegPluginLibrary("batstore");
+	return APLRes_Success;
+}
 
 public void OnPluginStart()
 {
+	RegConsoleCmd("sm_store", CommandMain, "Browse items to buy");
+	RegConsoleCmd("sm_shop", CommandMain, "Browse items to buy");
+
+	RegConsoleCmd("sm_buy", CommandStore, "Browse items to buy");
+
 	RegConsoleCmd("sm_inventory", CommandInven, "View your backpack of items");
 	RegConsoleCmd("sm_inven", CommandInven, "View your backpack of items");
 	RegConsoleCmd("sm_inv", CommandInven, "View your backpack of items");
 
-	RegConsoleCmd("sm_store", CommandStore, "Browse items to buy");
-	RegConsoleCmd("sm_shop", CommandStore, "Browse items to buy");
-	RegConsoleCmd("sm_buy", CommandStore, "Browse items to buy");
+	LoadTranslations("common.phrases");
 }
 
 public void OnPluginEnd()
@@ -367,7 +275,12 @@ public void OnConfigsExecuted()
 
 public void OnClientPostAdminCheck(int client)
 {
-	Client[i].Setup(i);
+	Client[client].Setup(client);
+}
+
+public void OnClientDisconnect(int client)
+{
+	Client[client].Save(client);
 }
 
 // Setup Events
@@ -384,20 +297,48 @@ void ReadCategory(int parent)
 			break;
 
 		Item[parent].Items[i] = ++MaxItems;
-		if(StoreKv.GetNum("category"))
+		if(StoreKv.GetNum("cost") < 1)
 		{
 			ReadCategory(MaxItems);
 		}
 		else
 		{
-			Item[MaxItems].ReadItem();
+			// Compiler wouldn't let me put this in the enum .w.
+			StoreKv.GetSectionName(Item[MaxItems].Name, MAX_ITEM_LENGTH);
+
+			StoreKv.GetString("admin", buffer, MAX_ITEM_LENGTH);
+			Item[MaxItems].Admin = ReadFlagString(buffer);
+
+			Item[MaxItems].Cost = StoreKv.GetNum("cost");
+			Item[MaxItems].Hidden = (!GetRandomInt(0, 5) || StoreKv.GetNum("hidden"));
+			Item[MaxItems].Stack = view_as<bool>(StoreKv.GetNum("stack", 1));
+			Item[MaxItems].Trade = view_as<bool>(StoreKv.GetNum("trade"));
+			StoreKv.GetString("plugin", Item[MaxItems].Plugin, MAX_PLUGIN_LENGTH);
+			StoreKv.GetString("desc", Item[MaxItems].Desc, MAX_DESC_LENGTH, "No Description");
+			Item[MaxItems].Sell = StoreKv.GetNum("sell", RoundFloat(Item[MaxItems].Cost*SELLRATIO));
 		}
 		i++;
-	} while(MaxItems<MAXITEMS && i<MAXONCES && StoreKv.GotoNextKey())
+	} while(MaxItems<MAXITEMS && i<MAXONCE && StoreKv.GotoNextKey());
 	StoreKv.GoBack();
 }
 
 // Command Events
+
+public Action CommandMain(int client, int args)
+{
+	if(!client)
+	{
+		ReplyToCommand(client, "[SM] %t", "Command is in-game only");
+		return Plugin_Handled;
+	}
+
+	if(!Client[client].Store)
+		Client[client].ClearPos();
+
+	Client[client].Store = true;
+	Store(client);
+	return Plugin_Handled;
+}
 
 public Action CommandStore(int client, int args)
 {
@@ -410,6 +351,7 @@ public Action CommandStore(int client, int args)
 	if(!Client[client].Store)
 		Client[client].ClearPos();
 
+	Client[client].Store = true;
 	Store(client);
 	return Plugin_Handled;
 }
@@ -425,19 +367,72 @@ public Action CommandInven(int client, int args)
 	if(Client[client].Store)
 		Client[client].ClearPos();
 
+	Client[client].Store = false;
 	Inventory(client);
 	return Plugin_Handled;
 }
 
 // Menu Events
 
+public void Main(int client)
+{
+	if(IsVoteInProgress())
+	{
+		PrintToChat(client, "[SM] %t", "Vote in Progress");
+		return;
+	}
+
+	Menu menu = new Menu(StoreH);
+	menu.SetTitle("Main Menu\n \nCredits: %i\n ", Client[client].Cash);
+
+	menu.AddItem("", "Store");
+	menu.AddItem("", "Inventory");
+	menu.ExitButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MainH(Menu menu, MenuAction action, int client, int choice)
+{
+	switch(action)
+	{
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+		case MenuAction_Select:
+		{
+			if(choice)
+			{
+				Inventory(client);
+			}
+			else
+			{
+				Store(client);
+			}
+		}
+	}
+}
+
 public void Store(int client)
 {
+	if(IsVoteInProgress())
+	{
+		PrintToChat(client, "[SM] %t", "Vote in Progress");
+		return;
+	}
+
 	int item = Client[client].GetPos();
 	if(!item || Item[item].Items[0]>0)
 	{
 		Menu menu = new Menu(StoreH);
-		menu.SetTitle("Store: %s", item ? Item[item].Name : "Main Menu");
+		if(item)
+		{
+			menu.SetTitle("Store: %s\n ", Item[item].Name);
+		}
+		else
+		{
+			menu.SetTitle("Store\n \nCredits: %i\n ", Client[client].Cash);
+		}
 		for(int i; i<MAXONCE; i++)
 		{
 			if(ITEM < 1)
@@ -448,59 +443,54 @@ public void Store(int client)
 
 			static char buffer[MAX_NUM_LENGTH];
 			IntToString(ITEM, buffer, MAX_NUM_LENGTH);
-			menu.AddItem(buffer, Item[ITEM].Name, CheckCommandAccess(client, "batstore_all", Item[ITEM].Admin, true) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+			menu.AddItem(buffer, Item[ITEM].Name, CheckCommandAccess(client, "batstore_all", Item[ITEM].Admin, true) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 		}
 
-		menu.ExitBackButton = item>0;
+		menu.ExitBackButton = true;
 		menu.ExitButton = true;
 		menu.Display(client, MENU_TIME_FOREVER);
 		return;
 	}
 
-	Menu menu = new Menu(StoreItemH);
-	menu.SetTitle("Store: %s", Item[item].Name);
-	menu.AddItem("", " ", ITEMDRAW_DISABLED|ITEMDRAW_RAWLINE);
-	menu.AddItem("", Item[item].Desc, ITEMDRAW_DISABLED|ITEMDRAW_RAWLINE);
-	menu.AddItem("", " ", ITEMDRAW_DISABLED|ITEMDRAW_RAWLINE);
-
+	Panel panel = new Panel();
 	char buffer[MAX_ITEM_LENGTH];
+	FormatEx(buffer, MAX_ITEM_LENGTH, "%s\n ", Item[item].Name);
+	panel.SetTitle(buffer);
+	panel.DrawText(Item[item].Desc);
+
 	if(Item[item].Stack)
 	{
-		FormatEx(buffer, MAX_ITEM_LENGTH, "You %sown this item", Inv[client][item].Count<1 ? "don't " : "");
+		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou own %i\n ", Inv[client][item].Count);
 	}
 	else
 	{
-		FormatEx(buffer, MAX_ITEM_LENGTH, "You own %i", Inv[client][item].Count);
+		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou %sown this item\n ", Inv[client][item].Count<1 ? "don't " : "");
 	}
-	menu.AddItem("", buffer, ITEMDRAW_DISABLED|ITEMDRAW_RAWLINE);
-	menu.AddItem("", " ", ITEMDRAW_DISABLED|ITEMDRAW_RAWLINE);
+	panel.DrawText(buffer);
 
-	FormatEx(buffer, MAX_ITEM_LENGTH, "Buy (%i Credit(s))", Item[item].Cost);
-	if((Item[item].Stack && Inv[client][item].Count>0) || Client[client].Cash<Item[item].Cost)
+	FormatEx(buffer, MAX_ITEM_LENGTH, "Buy (%i Credits)", Item[item].Cost);
+	if((!Item[item].Stack && Inv[client][item].Count>0) || Client[client].Cash<Item[item].Cost)
 	{
-		menu.AddItem("0", buffer, ITEMDRAW_DISABLED);
+		panel.DrawItem(buffer, ITEMDRAW_DISABLED);
 	}
 	else
 	{
-		menu.AddItem("2", buffer);
+		panel.DrawItem(buffer);
 	}
 
 	if(Item[item].Sell > 0)
 	{
-		FormatEx(buffer, MAX_ITEM_LENGTH, "Sell (%i Credit(s))", Item[item].Sell);
-		if(Inv[client][item].Count > 0)
-		{
-			menu.AddItem("1", buffer);
-		}
-		else
-		{
-			menu.AddItem("0", buffer, ITEMDRAW_DISABLED);
-		}
+		FormatEx(buffer, MAX_ITEM_LENGTH, "Sell (%i Credits)", Item[item].Sell);
+		panel.DrawItem(buffer, Inv[client][item].Count>0 ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	}
 
-	menu.ExitBackButton = true;
-	menu.ExitButton = true;
-	menu.Display(client, MENU_TIME_FOREVER);
+	panel.DrawText(" ");
+	panel.CurrentKey = 8;
+	panel.DrawItem("Back");
+	panel.DrawText(" ");
+	panel.CurrentKey = 10;
+	panel.DrawItem("Exit");
+	panel.Send(client, StoreItemH, MENU_TIME_FOREVER);
 }
 
 public int StoreH(Menu menu, MenuAction action, int client, int choice)
@@ -525,66 +515,63 @@ public int StoreH(Menu menu, MenuAction action, int client, int choice)
 			menu.GetItem(choice, buffer, MAX_NUM_LENGTH);
 			int item = StringToInt(buffer);
 			if(item)
-				AddClientPos(client, item);
+				Client[client].AddPos(item);
 
 			Store(client);
 		}
 	}
 }
 
-public int StoreItemH(Menu menu, MenuAction action, int client, int choice)
+public int StoreItemH(Menu panel, MenuAction action, int client, int choice)
 {
-	switch(action)
-	{
-		case MenuAction_End:
-		{
-			delete menu;
-		}
-		case MenuAction_Cancel:
-		{
-			if(choice != MenuCancel_ExitBack)
-				return;
+	if(action != MenuAction_Select)
+		return;
 
-			Client[client].RemovePos();
-			Store(client);
-		}
-		case MenuAction_Select:
+	int item = Client[client].GetPos();
+	switch(choice)
+	{
+		case 1:
 		{
-			static char buffer[MAX_NUM_LENGTH];
-			menu.GetItem(choice, buffer, MAX_NUM_LENGTH);
-			int num = StringToInt(buffer);
-			int item = Client[client].GetPos();
-			switch(num)
+			if((Item[item].Stack || Inv[client][item].Count<1) && Client[client].Cash>=Item[item].Cost)
 			{
-				case 1:
+				Inv[client][item].Count++;
+				Client[client].Cash -= Item[item].Cost;
+			}
+		}
+		case 2:
+		{
+			if(Inv[client][item].Count>0 && Item[item].Sell>0)
+			{
+				Inv[client][item].Count--;
+				Client[client].Cash += Item[item].Sell;
+				if(Inv[client][item].Count < 1)
 				{
-					if(Inv[client][item].Count>0 && Item[item].Sell>0)
-					{
-						Inv[client][item].Count--;
-						Client[client].Cash += Item[item].Sell;
-						if(Inv[client][item].Count < 1)
-						{
-							Client[client].RemovePos();
-							Inv[client][item].Equip = false;
-						}
-					}
-				}
-				case 2:
-				{
-					if((!Item[item].Stack || Inv[client][item].Count<1) && Client[client].Cash>=Item[item].Cost)
-					{
-						Inv[client][item].Count++;
-						Client[client].Cash -= Item[item].Cost;
-					}
+					Client[client].RemovePos();
+					Inv[client][item].Equip = false;
 				}
 			}
-			Store(client);
+		}
+		case 10:
+		{
+			Client[client].RemovePos();
+			return;
+		}
+		default:
+		{
+			Client[client].RemovePos();
 		}
 	}
+	Store(client);
 }
 
 public Action Inventory(int client)
 {
+	if(IsVoteInProgress())
+	{
+		PrintToChat(client, "[SM] %t", "Vote in Progress");
+		return;
+	}
+
 	int item = Client[client].GetPos();
 	if(!item || Item[item].Items[0]>0)
 	{
@@ -597,6 +584,8 @@ public Action Inventory(int client)
 		{
 			menu.SetTitle("Inventory\nCredits: %i\n ", Client[client].Cash);
 		}
+
+		bool items;
 		for(int i; i<MAXONCE; i++)
 		{
 			if(ITEM < 1)
@@ -605,38 +594,51 @@ public Action Inventory(int client)
 			if(Inv[client][ITEM].Count < 1)
 				continue;
 
+			items = true;
 			static char buffer[MAX_NUM_LENGTH];
 			IntToString(ITEM, buffer, MAX_NUM_LENGTH);
 			menu.AddItem(buffer, Item[ITEM].Name);
 		}
 
-		menu.ExitBackButton = item>0;
+		if(!items)
+			menu.AddItem("0", "No Items", ITEMDRAW_DISABLED);
+
+		menu.ExitBackButton = true;
 		menu.ExitButton = true;
 		menu.Display(client, MENU_TIME_FOREVER);
 		return;
 	}
 
-	Menu menu = new Menu(InventoryItemH);
-	menu.SetTitle("Inventory: %s", Item[item].Name);
-	menu.AddItem("", " ", ITEMDRAW_DISABLED|ITEMDRAW_RAWLINE);
-	menu.AddItem("", Item[item].Desc, ITEMDRAW_DISABLED|ITEMDRAW_RAWLINE);
-	menu.AddItem("", " ", ITEMDRAW_DISABLED|ITEMDRAW_RAWLINE);
-
+	Panel panel = new Panel();
 	char buffer[MAX_ITEM_LENGTH];
-	FormatEx(buffer, MAX_ITEM_LENGTH, "You own %i", Inv[client][item].Count);
-	menu.AddItem("", buffer, ITEMDRAW_DISABLED|ITEMDRAW_RAWLINE);
-	menu.AddItem("", " ", ITEMDRAW_DISABLED|ITEMDRAW_RAWLINE);
+	FormatEx(buffer, MAX_ITEM_LENGTH, "%s\n ", Item[item].Name);
+	panel.SetTitle(buffer);
+	panel.DrawText(Item[item].Desc);
 
-	menu.AddItem("2", Inv[client][item].Equip ? "Disactivate Item" : "Activate Item");
+	if(Item[item].Stack)
+	{
+		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou own %i\n ", Inv[client][item].Count);
+	}
+	else
+	{
+		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou %sown this item\n ", Inv[client][item].Count<1 ? "don't " : "");
+	}
+	panel.DrawText(buffer);
+
+	panel.DrawItem(Inv[client][item].Equip ? "Disactivate Item" : "Activate Item");
 	if(Item[item].Sell > 0)
 	{
-		FormatEx(buffer, MAX_ITEM_LENGTH, "Sell (%i Credit(s))", Item[item].Sell);
-		menu.AddItem("1", buffer);
+		FormatEx(buffer, MAX_ITEM_LENGTH, "Sell (%i Credits)", Item[item].Sell);
+		panel.DrawItem(buffer, Inv[client][item].Count>0 ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	}
 
-	menu.ExitBackButton = true;
-	menu.ExitButton = true;
-	menu.Display(client, MENU_TIME_FOREVER);
+	panel.DrawText(" ");
+	panel.CurrentKey = 8;
+	panel.DrawItem("Back");
+	panel.DrawText(" ");
+	panel.CurrentKey = 10;
+	panel.DrawItem("Exit");
+	panel.Send(client, InventoryItemH, MENU_TIME_FOREVER);
 }
 
 public int InventoryH(Menu menu, MenuAction action, int client, int choice)
@@ -661,14 +663,14 @@ public int InventoryH(Menu menu, MenuAction action, int client, int choice)
 			menu.GetItem(choice, buffer, MAX_NUM_LENGTH);
 			int item = StringToInt(buffer);
 			if(item)
-				AddClientPos(client, item);
+				Client[client].AddPos(item);
 
 			Inventory(client);
 		}
 	}
 }
 
-public int InventoryItemH(Menu menu, MenuAction action, int client, int choice)
+/*public int InventoryItemH(Menu menu, MenuAction action, int client, int choice)
 {
 	switch(action)
 	{
@@ -708,11 +710,170 @@ public int InventoryItemH(Menu menu, MenuAction action, int client, int choice)
 				case 2:
 				{
 					if(Inv[client][item].Count > 1)
-						Item[item].Use(client, item);
+						UseItem(client, item);
 				}
 			}
 			Inventory(client);
 		}
+	}
+}*/
+
+public int InventoryItemH(Menu panel, MenuAction action, int client, int choice)
+{
+	if(action != MenuAction_Select)
+		return;
+
+	int item = Client[client].GetPos();
+	switch(choice)
+	{
+		case 1:
+		{
+			if(Inv[client][item].Count > 1)
+			{
+				UseItem(client);
+				if(Inv[client][item].Count < 1)
+					Client[client].RemovePos();
+			}
+		}
+		case 2:
+		{
+			if(Inv[client][item].Count>0 && Item[item].Sell>0)
+			{
+				Inv[client][item].Count--;
+				Client[client].Cash += Item[item].Sell;
+				if(Inv[client][item].Count < 1)
+				{
+					Client[client].RemovePos();
+					Inv[client][item].Equip = false;
+				}
+			}
+		}
+		case 10:
+		{
+			Client[client].RemovePos();
+			return;
+		}
+		default:
+		{
+			Client[client].RemovePos();
+		}
+	}
+	Inventory(client);
+}
+
+void UseItem(int client)
+{
+	int item;
+	char buffer[256];
+	StoreKv.Rewind();
+	for(int i; i<MAXCATEGORIES; i++)
+	{
+		if(!Client[client].Pos[i])
+			break;
+
+		StoreKv.GotoFirstSubKey();
+		item = Client[client].Pos[i];
+		for(int a=0; a<MAXONCE; a++)
+		{
+			StoreKv.GetSectionName(buffer, sizeof(buffer));
+			if(StrEqual(buffer, Item[item].Name, false))
+				break;
+
+			if(!StoreKv.GotoNextKey())
+			{
+				if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
+				{
+					SPrintToChat(client, "%s doesn't exist anymore?", Item[item].Name);
+				}
+				else
+				{
+					SPrintToChat(client, "%s can't be used right now!", Item[item].Name);
+				}
+				return;
+			}
+		}
+	}
+
+	Handle iter = GetPluginIterator();
+	Handle plugin;
+	while(MorePlugins(iter))
+	{
+		plugin = ReadPlugin(iter);
+		GetPluginFilename(plugin, buffer, 256);
+		if(StrContains(buffer, Item[item].Plugin, false) == -1)
+			continue;
+
+		Function func = GetFunctionByName(plugin, "BatStore_Item");
+		if(func == INVALID_FUNCTION)
+		{
+			if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
+			{
+				SPrintToChat(client, "%s is missing function BatStore_Item from %s!", Item[item].Name, Item[item].Plugin);
+			}
+			else
+			{
+				SPrintToChat(client, "%s can't be used right now!", Item[item].Name);
+			}
+			delete iter;
+			return;
+		}
+
+		ItemResult result = Item_None;
+		Call_StartFunction(plugin, func);
+		Call_PushCell(client);
+		Call_PushCell(Inv[client][item].Equip);
+		Call_PushCell(StoreKv);
+		Call_PushCell(item);
+		Call_PushString(Item[item].Name);
+		Call_PushCellRef(Inv[client][item].Count);
+		Call_Finish(result);
+
+		// Somebody closed the damn kv
+		if(StoreKv == INVALID_HANDLE)
+			SetFailState("'%s' is not allowed to close KeyValues Handle for 'batstore.smx' in 'BatStore_Item'!", buffer);
+
+		switch(result)
+		{
+			case Item_Used:
+			{
+				if(--Inv[client][item].Count < 1)
+				{
+					Inv[client][item].Count = 0;
+					Inv[client][item].Equip = false;
+				}
+			}
+			case Item_On:
+			{
+				if(!Inv[client][item].Equip)
+				{
+					for(int i=1; i<=MaxItems; i++)
+					{
+						if(Inv[client][i].Count<1 || !Inv[client][i].Equip)
+							continue;
+
+						if(Item[item].Slot == Item[i].Slot)
+							Inv[client][i].Equip = false;
+					}
+					Inv[client][item].Equip = true;
+				}
+			}
+			case Item_Off:
+			{
+				Inv[client][item].Equip = false;
+			}
+		}
+		delete iter;
+		return;
+	}
+
+	delete iter;
+	if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
+	{
+		SPrintToChat(client, "%s is missing plugin %s!", Item[item].Name, Item[item].Plugin);
+	}
+	else
+	{
+		SPrintToChat(client, "%s can't be used right now!", Item[item].Name);
 	}
 }
 
@@ -733,6 +894,49 @@ stock bool IsValidClient(int client, bool replaycheck=true)
 		return false;
 
 	return true;
+}
+
+// Natives
+
+public int Native_GetInv(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	if(client<0 || client>MAXPLAYERS)
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index %i", client);
+
+	int item = GetNativeCell(2);
+	if(item<0 || item>MAXITEMS)
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid item index %i", item);
+
+	SetNativeCellRef(3, Inv[client][item].Count);
+	return view_as<int>(Inv[client][item].Equip);
+}
+
+public int Native_SetInv(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	if(client<0 || client>MAXPLAYERS)
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index %i", client);
+
+	int item = GetNativeCell(2);
+	if(item<0 || item>MAXITEMS)
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid item index %i", item);
+
+	int count = GetNativeCell(3);
+	if(count >= 0)
+		Inv[client][item].Count = count;
+
+	switch(GetNativeCell(4))
+	{
+		case 0:
+		{
+			Inv[client][item].Equip = false;
+		}
+		case 1:
+		{
+			Inv[client][item].Equip = true;
+		}
+	}
 }
 
 #file "Bat Store"

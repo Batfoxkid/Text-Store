@@ -16,7 +16,32 @@ enum ItemResult
 };
 
 /**
- * Called when a Boss's music begins with name and artist
+ * Change a client's inventory count/equippment
+ *
+ * @param client 	Client index of using item
+ * @param item	 	Index of the item
+ * @param count		If the item is already equipped on the client
+ * @param item 		KeyValue of the item (already in place)
+ * @param name 		Name of the item
+ * @param count 	Amount of the item in the client's inventory
+ *
+ * @noreturn
+ */
+native void BatStore_SetInv(int client, int item, int count=-1, int equip=-1);
+
+/**
+ * Get a client's inventory count/equippment
+ *
+ * @param client 	Client index of using item
+ * @param item	 	Index of the item
+ * @param count		Amount of the item in the client's inventory
+ *
+ * @return		If the item is equipped
+ */
+native bool BatStore_GetInv(int client, int item, int &count=0);
+
+/**
+ * Called to a given plugin when a item is used
  *
  * @note		This is not actually a forward, this is called per plugin
  * @note		Do not close the KeyValues handle given
@@ -24,12 +49,13 @@ enum ItemResult
  * @param client 	Client index of using item
  * @param equipped	If the item is already equipped on the client
  * @param item 		KeyValue of the item (already in place)
+ * @param index 	Index of the item
  * @param name 		Name of the item
  * @param count 	Amount of the item in the client's inventory
  *
  * @return		Item result
  */
-forward ItemResult BatStore_Item(int client, bool equipped, KeyValues item, const char[] name, int &count);
+forward ItemResult BatStore_Item(int client, bool equipped, KeyValues item, int index, const char[] name, int &count);
 
 /**
  * Prints a color message with the store's prefix
@@ -69,3 +95,22 @@ stock void SReplyToCommand(int client, const char[] message, any ...)
 		CPrintToChat(client, "%s%s", STORE_PREFIX, buffer);
 	}
 }
+
+public SharedPlugin __pl_FF2 =
+{
+	name = "batstore",
+	file = "batstore.smx",
+	#if defined REQUIRE_PLUGIN
+		required = 1,
+	#else
+		required = 0,
+	#endif
+};
+
+#if !defined REQUIRE_PLUGIN
+public void __pl_FF2_SetNTVOptional()
+{
+	MarkNativeAsOptional("BatStore_GetInv");
+	MarkNativeAsOptional("BatStore_SetInv");
+}
+#endif

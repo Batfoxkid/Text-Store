@@ -23,29 +23,30 @@ enum struct TrailEnum
 		return this.Precache;
 	}
 
-	void Clear()
+	void Clear(int client)
 	{
 		this.Path[0] = 0;
+		Trail_Remove(client);
 	}
 }
 TrailEnum Trail[MAXPLAYERS+1];
 int TrailOwner[2048];
 
-public ItemResult Trail_Use(int client, bool equipped, KeyValues item, const char[] name, int &count)
+public ItemResult Trail_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
 {
 	if(equipped)
 	{
-		Trail[client].Clear();
+		Trail[client].Clear(client);
 		return Item_Off;
 	}
 
 	if(!IsPlayerAlive(client))
 	{
-		SPrintToChat("You must be alive to equip this!");
+		SPrintToChat(client, "You must be alive to equip this!");
 		return Item_None;
 	}
 
-	static int color[4];
+	int color[4] = {255, 255, 255, 255};
 	static char buffer[MAX_MATERIAL_LENGTH];
 	item.GetString("material", buffer, MAX_MATERIAL_LENGTH);
 	item.GetColor4("color", color);
@@ -73,10 +74,14 @@ public void Trail_Create(int userid)
 			DispatchKeyValue(Trail[client].Entity, "scale", "0.0");
 			DispatchKeyValue(Trail[client].Entity, "rendermode", "10");
 			DispatchKeyValue(Trail[client].Entity, "rendercolor", "255 255 255 0");
-			DispatchKeyValue(Trail[client].Entity, "model", Trail[client].Precache);
+			{
+				char num[6];
+				IntToString(Trail[client].Precache, num, sizeof(num));
+				DispatchKeyValue(Trail[client].Entity, "model", num);
+			}
 			DispatchSpawn(Trail[client].Entity);
 			Trail_Attach(Trail[client].Entity, client);
-			SDKHook(entity, SDKHook_SetTransmit, Trail_Transmit);
+			SDKHook(Trail[client].Entity, SDKHook_SetTransmit, Trail_Transmit);
 		}
 
 		int color[4];
@@ -107,8 +112,8 @@ public void Trail_Create(int userid)
 	DispatchSpawn(Trail[client].Entity);
 	Trail_Attach(Trail[client].Entity, client);
 
-	SDKHook(entity, SDKHook_SetTransmit, Trail_Transmit);
-	TrailOwner[entity] = client;
+	SDKHook(Trail[client].Entity, SDKHook_SetTransmit, Trail_Transmit);
+	TrailOwner[Trail[client].Entity] = client;
 }
 
 void Trail_Remove(int client)
@@ -116,8 +121,8 @@ void Trail_Remove(int client)
 	if(Trail[client].Entity && IsValidEdict(Trail[client].Entity))
 	{
 		TrailOwner[Trail[client].Entity] = 0;
-		static char classname[64];
-		GetEdictClassname(Trail[client].Entity, classname);
+		static char classname[MAX_CLASSNAME_LENGTH];
+		GetEdictClassname(Trail[client].Entity, classname, MAX_CLASSNAME_LENGTH);
 		if(StrEqual("env_spritetrail", classname))
 		{
 			SDKUnhook(Trail[client].Entity, SDKHook_SetTransmit, Trail_Transmit);
@@ -133,7 +138,7 @@ void Trail_Attach(int entity, int client)
 	static float temp[3] = {0.0, 90.0, 0.0};
 	static float pos[3] = {0.0, 0.0, 5.0};
 	GetEntPropVector(client, Prop_Data, "m_angAbsRotation", ang);
-	SetEntPropVector(client, Prop_Data, "m_angAbsRotation", tmp);
+	SetEntPropVector(client, Prop_Data, "m_angAbsRotation", temp);
 	GetClientAbsOrigin(client, org);
 	AddVectors(org, pos, org);
 	TeleportEntity(entity, org, temp, NULL_VECTOR);

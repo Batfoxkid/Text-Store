@@ -3,6 +3,7 @@
 #include <sourcemod>
 #include <morecolors>
 #include <batstore>
+#include <sdkhooks>
 
 #undef REQUIRE_EXTENSIONS
 #include <tf2_stocks>
@@ -37,7 +38,7 @@
 #define MAX_NUM_LENGTH		5
 #define VOID_ARG		-1
 
-EngineVersion GameType;
+EngineVersion GameType = Engine_Unknown;
 float Delay[MAXPLAYERS+1];
 
 // SourceMod Events
@@ -66,6 +67,8 @@ public void OnPluginStart()
 	{
 		GameType = Engine_TF2;
 	}
+
+	LoadTranslations("common.phrases");
 }
 
 // Stocks
@@ -89,41 +92,53 @@ stock bool IsValidClient(int client, bool replaycheck=true)
 
 // Modules
 
-#include "batstore/trails.sp"
-#include "batstore/tvip.sp"
-#include "batstore/tf2/ff2.sp"
+#tryinclude "batstore/command.sp"
+#tryinclude "batstore/trails.sp"
+#tryinclude "batstore/tvip.sp"
+#tryinclude "batstore/voting.sp"
+#tryinclude "batstore/tf2/ff2.sp"
 
 // Store Events
 
-public ItemResult BatStore_Item(int client, bool equipped, KeyValues item, const char[] name, int &count)
+public ItemResult BatStore_Item(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
 {
 	float engineTime = GetEngineTime();
 	if(Delay[client] > engineTime)
 	{
-		SPrintToChat("Please wait...");
+		SPrintToChat(client, "Please wait...");
 		return Item_None;
 	}
 	Delay[client] = engineTime+2.5;
 
-	static char buffer[MAX_MATERIAL_PATH];
-	item.GetString("type", buffer, MAX_MATERIAL_PATH);
+	static char buffer[MAX_MATERIAL_LENGTH];
+	item.GetString("type", buffer, MAX_MATERIAL_LENGTH);
+
+	#if defined ITEM_COMMAND
+	if(StrEqual(buffer, ITEM_COMMAND))
+		return Command_Use(client, equipped, item, index, name, count);
+	#endif
 
 	#if defined ITEM_TRAIL
 	if(StrEqual(buffer, ITEM_TRAIL))
-		return Trail_Use(client, equipped, item, name, count);
+		return Trail_Use(client, equipped, item, index, name, count);
 	#endif
 
 	#if defined ITEM_TVIP
 	if(StrEqual(buffer, ITEM_TVIP))
-		return tVip_Use(client, equipped, item, name, count);
+		return tVip_Use(client, equipped, item, index, name, count);
+	#endif
+
+	#if defined ITEM_VOTE
+	if(StrEqual(buffer, ITEM_VOTE))
+		return Vote_Use(client, equipped, item, index, name, count);
 	#endif
 
 	#if defined ITEM_TF2_FF2
 	if(StrEqual(buffer, ITEM_TF2_FF2))
-		return FF2_Use(client, equipped, item, name, count);
+		return FF2_Use(client, equipped, item, index, name, count);
 	#endif
 
-	SPrintToClient(client, "This item has no effect!", name);
+	SPrintToChat(client, "This item has no effect!");
 	return Item_None;
 }
 
