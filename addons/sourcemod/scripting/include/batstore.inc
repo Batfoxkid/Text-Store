@@ -1,7 +1,6 @@
 #if defined _batstore_included
   #endinput
 #endif
-
 #define _batstore_included
 #define STORE_PREFIX	"{green}[Store]{snow} "
 #define STORE_COLOR	"{snow}"
@@ -96,7 +95,7 @@ stock void SReplyToCommand(int client, const char[] message, any ...)
 	}
 }
 
-public SharedPlugin __pl_FF2 =
+public SharedPlugin __pl_BatStore =
 {
 	name = "batstore",
 	file = "batstore.smx",
@@ -108,7 +107,7 @@ public SharedPlugin __pl_FF2 =
 };
 
 #if !defined REQUIRE_PLUGIN
-public void __pl_FF2_SetNTVOptional()
+public void __pl_BatStore_SetNTVOptional()
 {
 	MarkNativeAsOptional("BatStore_GetInv");
 	MarkNativeAsOptional("BatStore_SetInv");
