@@ -35,7 +35,20 @@ public ItemResult Command_Use(int client, bool equipped, KeyValues item, int ind
 		item.GetString("success", buffer2, sizeof(buffer2));
 		if(!buffer2[0])
 		{
-			ServerCommand(buffer);
+			switch(item.GetNum("client"))
+			{
+				case 1:
+					ClientCommand(buffer);
+
+				case 2:
+					FakeClientCommand(buffer);
+
+				case 3:
+					FakeClientCommandEx(buffer);
+
+				default:
+					ServerCommand(buffer);
+			}
 			return Item_Used;
 		}
 	}
