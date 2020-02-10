@@ -9,6 +9,11 @@
 #include <tf2_stocks>
 #define REQUIRE_EXTENSIONS
 
+#undef REQUIRE_PLUGIN
+#tryinclude <tVip>
+#tryinclude <freak_fortress_2>
+#define REQUIRE_PLUGIN
+
 #pragma newdecls required
 
 #define MAJOR_REVISION	"0"
