@@ -1,7 +1,3 @@
-#undef REQUIRE_PLUGIN
-#tryinclude <tVip>
-#define REQUIRE_PLUGIN
-
 #if defined _tVip_included
 #define ITEM_TVIP	"tvip"
 
