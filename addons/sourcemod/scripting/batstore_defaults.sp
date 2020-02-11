@@ -56,9 +56,21 @@ public Plugin myinfo =
 	version		=	PLUGIN_VERSION
 };
 
-/*public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-}*/
+	#if defined _tVip_included
+	MarkNativeAsOptional("tVip_GrantVip");
+	#endif
+
+	#if defined _FF2_included
+	MarkNativeAsOptional("FF2_GetBossIndex");
+	MarkNativeAsOptional("FF2_GetBossName");
+	MarkNativeAsOptional("FF2_GetBossSpecial");
+	MarkNativeAsOptional("FF2_GetQueuePoints");
+	MarkNativeAsOptional("FF2_GetSpecialKV");
+	MarkNativeAsOptional("FF2_SelectBoss");
+	#endif
+}
 
 public void OnPluginStart()
 {
@@ -71,6 +83,7 @@ public void OnPluginStart()
 	else if(StrEqual(buffer, "tf"))
 	{
 		GameType = Engine_TF2;
+		HookEventEx("arena_round_start", OnArenaRoundStart, EventHookMode_PostNoCopy);
 	}
 
 	LoadTranslations("common.phrases");
@@ -145,6 +158,13 @@ public ItemResult BatStore_Item(int client, bool equipped, KeyValues item, int i
 
 	SPrintToChat(client, "This item has no effect!");
 	return Item_None;
+}
+
+public void OnArenaRoundStart(Event event, const char[] name, bool dontBroadcast)
+{
+	#if defined ITEM_TF2_FF2
+	FF2_OnArenaRoundStart();
+	#endif
 }
 
 #file "Bat Store: Defaults"

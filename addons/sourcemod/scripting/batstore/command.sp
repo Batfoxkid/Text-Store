@@ -38,13 +38,13 @@ public ItemResult Command_Use(int client, bool equipped, KeyValues item, int ind
 			switch(item.GetNum("client"))
 			{
 				case 1:
-					ClientCommand(buffer);
+					ClientCommand(client, buffer);
 
 				case 2:
-					FakeClientCommand(buffer);
+					FakeClientCommand(client, buffer);
 
 				case 3:
-					FakeClientCommandEx(buffer);
+					FakeClientCommandEx(client, buffer);
 
 				default:
 					ServerCommand(buffer);

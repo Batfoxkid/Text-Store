@@ -8,7 +8,7 @@
 #pragma newdecls required
 
 #define MAJOR_REVISION	"0"
-#define MINOR_REVISION	"1"
+#define MINOR_REVISION	"2"
 #define STABLE_REVISION	"0"
 #define PLUGIN_VERSION MAJOR_REVISION..."."...MINOR_REVISION..."."...STABLE_REVISION
 
@@ -44,6 +44,7 @@
 
 KeyValues StoreKv;
 int MaxItems;
+GlobalForward OnSellItem; 
 
 enum struct InvEnum
 {
@@ -139,6 +140,7 @@ enum struct ClientEnum
 			Inv[client][i].Count = StringToInt(buffers[1]);
 			Inv[client][i].Equip = view_as<bool>(StringToInt(buffers[2]));
 		}
+		delete file;
 	}
 
 	void Save(int client)
@@ -151,7 +153,7 @@ enum struct ClientEnum
 		if(!FileExists(buffer))
 			return;
 
-		File file = OpenFile(buffer, "w+");
+		File file = OpenFile(buffer, "w");
 		if(file == null)
 			return;
 
@@ -161,6 +163,7 @@ enum struct ClientEnum
 			if(Inv[client][i].Count > 0)
 				file.WriteLine("%s;%i;%i", Item[i].Name, Inv[client][i].Count, Inv[client][i].Equip ? 1 : 0);
 		}
+		delete file;
 	}
 
 	int GetPos()
@@ -187,7 +190,7 @@ enum struct ClientEnum
 		}
 	}
 
-	void RemovePos()
+	int RemovePos()
 	{
 		int item;
 		for(int i=(MAXCATEGORIES-1); i>=0; i--)
@@ -196,9 +199,10 @@ enum struct ClientEnum
 			if(item)
 			{
 				this.Pos[i] = 0;
-				return;
+				return item;
 			}
 		}
+		return 0;
 	}
 
 	void ClearPos()
@@ -225,6 +229,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 {
 	CreateNative("BatStore_GetInv", Native_GetInv);
 	CreateNative("BatStore_SetInv", Native_SetInv);
+	OnSellItem = new GlobalForward("BatStore_OnSellItem", ET_Hook, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 
 	RegPluginLibrary("batstore");
 	return APLRes_Success;
@@ -332,11 +337,8 @@ public Action CommandMain(int client, int args)
 		return Plugin_Handled;
 	}
 
-	if(!Client[client].Store)
-		Client[client].ClearPos();
-
-	Client[client].Store = true;
-	Store(client);
+	Client[client].ClearPos();
+	Main(client);
 	return Plugin_Handled;
 }
 
@@ -382,7 +384,7 @@ public void Main(int client)
 		return;
 	}
 
-	Menu menu = new Menu(StoreH);
+	Menu menu = new Menu(MainH);
 	menu.SetTitle("Main Menu\n \nCredits: %i\n ", Client[client].Cash);
 
 	menu.AddItem("", "Store");
@@ -403,10 +405,12 @@ public int MainH(Menu menu, MenuAction action, int client, int choice)
 		{
 			if(choice)
 			{
+				Client[client].Store = false;
 				Inventory(client);
 			}
 			else
 			{
+				Client[client].Store = true;
 				Store(client);
 			}
 		}
@@ -460,11 +464,11 @@ public void Store(int client)
 
 	if(Item[item].Stack)
 	{
-		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou own %i\n ", Inv[client][item].Count);
+		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou have %i credits\nYou own %i\n ", Client[client].Cash, Inv[client][item].Count);
 	}
 	else
 	{
-		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou %sown this item\n ", Inv[client][item].Count<1 ? "don't " : "");
+		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou have %i credits\nYou %sown this item\n ", Client[client].Cash, Inv[client][item].Count<1 ? "don't " : "");
 	}
 	panel.DrawText(buffer);
 
@@ -506,8 +510,14 @@ public int StoreH(Menu menu, MenuAction action, int client, int choice)
 			if(choice != MenuCancel_ExitBack)
 				return;
 
-			Client[client].RemovePos();
-			Store(client);
+			if(Client[client].RemovePos())
+			{
+				Store(client);
+			}
+			else
+			{
+				Main(client);
+			}
 		}
 		case MenuAction_Select:
 		{
@@ -540,16 +550,7 @@ public int StoreItemH(Menu panel, MenuAction action, int client, int choice)
 		}
 		case 2:
 		{
-			if(Inv[client][item].Count>0 && Item[item].Sell>0)
-			{
-				Inv[client][item].Count--;
-				Client[client].Cash += Item[item].Sell;
-				if(Inv[client][item].Count < 1)
-				{
-					Client[client].RemovePos();
-					Inv[client][item].Equip = false;
-				}
-			}
+			SellItem(client, item);
 		}
 		case 10:
 		{
@@ -582,7 +583,7 @@ public Action Inventory(int client)
 		}
 		else
 		{
-			menu.SetTitle("Inventory\nCredits: %i\n ", Client[client].Cash);
+			menu.SetTitle("Inventory\n \nCredits: %i\n ", Client[client].Cash);
 		}
 
 		bool items;
@@ -617,11 +618,11 @@ public Action Inventory(int client)
 
 	if(Item[item].Stack)
 	{
-		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou own %i\n ", Inv[client][item].Count);
+		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou have %i credits\nYou own %i\n ", Client[client].Cash, Inv[client][item].Count);
 	}
 	else
 	{
-		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou %sown this item\n ", Inv[client][item].Count<1 ? "don't " : "");
+		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou have %i credits\nYou %sown this item\n ", Client[client].Cash, Inv[client][item].Count<1 ? "don't " : "");
 	}
 	panel.DrawText(buffer);
 
@@ -654,8 +655,14 @@ public int InventoryH(Menu menu, MenuAction action, int client, int choice)
 			if(choice != MenuCancel_ExitBack)
 				return;
 
-			Client[client].RemovePos();
-			Inventory(client);
+			if(Client[client].RemovePos())
+			{
+				Inventory(client);
+			}
+			else
+			{
+				Main(client);
+			}
 		}
 		case MenuAction_Select:
 		{
@@ -737,16 +744,7 @@ public int InventoryItemH(Menu panel, MenuAction action, int client, int choice)
 		}
 		case 2:
 		{
-			if(Inv[client][item].Count>0 && Item[item].Sell>0)
-			{
-				Inv[client][item].Count--;
-				Client[client].Cash += Item[item].Sell;
-				if(Inv[client][item].Count < 1)
-				{
-					Client[client].RemovePos();
-					Inv[client][item].Equip = false;
-				}
-			}
+			SellItem(client, item);
 		}
 		case 10:
 		{
@@ -875,6 +873,50 @@ void UseItem(int client)
 	{
 		SPrintToChat(client, "%s can't be used right now!", Item[item].Name);
 	}
+}
+
+void SellItem(int client, int item)
+{
+	if(Inv[client][item].Count<1 || Item[item].Sell<1)
+		return;
+
+	int count = Inv[client][item].Count;
+	int sell = Item[item].Sell;
+	Action action = Plugin_Continue;
+	Call_StartForward(OnSellItem);
+	Call_PushCell(client);
+	Call_PushCell(item);
+	Call_PushCell(Client[client].Cash);
+	Call_PushCellRef(count);
+	Call_PushCellRef(sell);
+	switch(action)
+	{
+		case Plugin_Changed:
+		{
+			Inv[client][item].Count = count;
+		}
+		case Plugin_Handled:
+		{
+			Inv[client][item].Count = count;
+			return;
+		}
+		case Plugin_Stop:
+		{
+			return;
+		}
+		default:
+		{
+			sell = Item[item].Sell;
+		}
+	}
+
+	Inv[client][item].Count--;
+	Client[client].Cash += sell;
+	if(Inv[client][item].Count > 0)
+		return;
+
+	Client[client].RemovePos();
+	Inv[client][item].Equip = false;
 }
 
 // Stocks

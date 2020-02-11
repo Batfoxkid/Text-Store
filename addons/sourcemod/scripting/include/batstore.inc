@@ -40,6 +40,19 @@ native void BatStore_SetInv(int client, int item, int count=-1, int equip=-1);
 native bool BatStore_GetInv(int client, int item, int &count=0);
 
 /**
+ * Called when a client is about to be sold
+ *
+ * @param client 	Client index of seller
+ * @param item		Index of the item
+ * @param cash		The current "cash" the client has
+ * @param count		The current amount of the item the client has
+ * @param sell		The amount the item is being sold for
+ *
+ * @return		Plugin_Changed to change values, Plugin_Handled/Plugin_Stop to prevent the sell
+ */
+forward Action BatStore_OnSellItem(int client, int item, int cash, int &count, int &sell);
+
+/**
  * Called to a given plugin when a item is used
  *
  * @note		This is not actually a forward, this is called per plugin
