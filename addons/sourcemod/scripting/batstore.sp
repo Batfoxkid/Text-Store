@@ -226,6 +226,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 {
 	CreateNative("BatStore_GetInv", Native_GetInv);
 	CreateNative("BatStore_SetInv", Native_SetInv);
+	CreateNative("BatStore_Cash", Native_Cash);
 	OnSellItem = new GlobalForward("BatStore_OnSellItem", ET_Hook, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 
 	RegPluginLibrary("batstore");
@@ -934,7 +935,7 @@ stock bool IsValidClient(int client, bool replaycheck=true)
 
 // Natives
 
-public int Native_GetInv(Handle plugin, int numParams)
+public any Native_GetInv(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
 	if(client<0 || client>MAXPLAYERS)
@@ -945,10 +946,10 @@ public int Native_GetInv(Handle plugin, int numParams)
 		ThrowNativeError(SP_ERROR_NATIVE, "Invalid item index %i", item);
 
 	SetNativeCellRef(3, Inv[client][item].Count);
-	return view_as<int>(Inv[client][item].Equip);
+	return Inv[client][item].Equip;
 }
 
-public int Native_SetInv(Handle plugin, int numParams)
+public any Native_SetInv(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
 	if(client<0 || client>MAXPLAYERS)
@@ -973,6 +974,19 @@ public int Native_SetInv(Handle plugin, int numParams)
 			Inv[client][item].Equip = true;
 		}
 	}
+}
+
+public any Native_Cash(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	if(client<0 || client>MAXPLAYERS)
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index %i", client);
+
+	int cash = GetNativeCell(2);
+	if(cash)
+		Client[client].Cash += cash;
+
+	return Client[client].Cash;
 }
 
 #file "Bat Store"
