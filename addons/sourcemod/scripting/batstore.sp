@@ -150,9 +150,6 @@ enum struct ClientEnum
 
 		char buffer[PLATFORM_MAX_PATH];
 		BuildPath(Path_SM, buffer, PLATFORM_MAX_PATH, DATA_PLAYERS, this.Id);
-		if(!FileExists(buffer))
-			return;
-
 		File file = OpenFile(buffer, "w");
 		if(file == null)
 			return;
