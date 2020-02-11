@@ -2,6 +2,7 @@
   #endinput
 #endif
 #define _batstore_included
+
 #define STORE_PREFIX	"{green}[Store]{snow} "
 #define STORE_COLOR	"{snow}"
 #define STORE_COLOR2	"{green}"
@@ -38,6 +39,16 @@ native void BatStore_SetInv(int client, int item, int count=-1, int equip=-1);
  * @return		If the item is equipped
  */
 native bool BatStore_GetInv(int client, int item, int &count=0);
+
+/**
+ * Get, give, remove cash on a client
+ *
+ * @param client 	Client index of using item
+ * @param cash	 	Cash to give/remove
+ *
+ * @return		New cash value
+ */
+native int BatStore_Cash(int client, int cash=0);
 
 /**
  * Called when a client is about to be sold
@@ -124,5 +135,6 @@ public void __pl_BatStore_SetNTVOptional()
 {
 	MarkNativeAsOptional("BatStore_GetInv");
 	MarkNativeAsOptional("BatStore_SetInv");
+	MarkNativeAsOptional("BatStore_Cash");
 }
 #endif
