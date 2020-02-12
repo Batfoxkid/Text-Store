@@ -129,6 +129,8 @@ public void OnPluginStart()
 
 	HookEvent("player_score_changed", OnScore);
 	CashScore = CreateConVar("batstore_cash_score", "0.0", "Ratio of score gained to cash.");
+
+	AutoExecConfig(true, "BatStore_TF2");
 }
 
 /*
@@ -167,11 +169,11 @@ public void OnFlagCapture(Event event, const char[] name, bool dontBroadcast)
 
 	switch(event.GetInt("eventtype"))
 	{
-		case 4:
+		case TF_FLAGEVENT_CAPTURED:
 		{
 			AddCash(client, CashFlag.IntValue);
 		}
-		case 2:
+		case TF_FLAGEVENT_DEFENDED:
 		{
 			int victim = event.GetInt("carrier");
 			if(IsValidClient(victim) && !IsFakeClient(victim))
