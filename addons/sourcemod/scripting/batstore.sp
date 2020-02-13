@@ -34,7 +34,7 @@
 
 #define ITEM	Item[item].Items[i]
 
-#define DATA_PLAYERS	"data/batstore/user/%i.txt"
+#define DATA_PLAYERS	"data/batstore/user/%s.txt"
 #define DATA_STORE	"data/batstore/store.cfg"
 
 #define SELLRATIO	0.75
@@ -72,7 +72,6 @@ ItemEnum Item[MAXITEMS+1];
 enum struct ClientEnum
 {
 	int Cash;
-	int Id;
 	int Pos[MAXCATEGORIES];
 	bool Store;
 
@@ -92,23 +91,13 @@ enum struct ClientEnum
 		}
 
 		if(IsFakeClient(client))
-		{
-			this.Id = 0;
 			return;
-		}
 
 		char buffer[PLATFORM_MAX_PATH];
 		if(!GetClientAuthId(client, AuthId_SteamID64, buffer, PLATFORM_MAX_PATH))
-		{
-			this.Id = 0;
-			return;
-		}
-
-		this.Id = StringToInt(buffer);
-		if(!this.Id)
 			return;
 
-		BuildPath(Path_SM, buffer, PLATFORM_MAX_PATH, DATA_PLAYERS, this.Id);
+		BuildPath(Path_SM, buffer, PLATFORM_MAX_PATH, DATA_PLAYERS, buffer);
 		if(!FileExists(buffer))
 			return;
 
@@ -128,10 +117,10 @@ enum struct ClientEnum
 			if(StrEqual(buffers[0], "cash"))
 				this.Cash = StringToInt(buffers[1]);
 
-			for(i=1; i<=MaxItems; i++)
+			for(i=1; i<=(MaxItems+1); i++)
 			{
-				if(!StrEqual(buffers[0], Item[i].Name))
-					continue;
+				if(i<=MaxItems && StrEqual(buffers[0], Item[i].Name))
+					break;
 			}
 
 			if(i > MaxItems)
@@ -145,11 +134,11 @@ enum struct ClientEnum
 
 	void Save(int client)
 	{
-		if(!this.Id)
+		char buffer[PLATFORM_MAX_PATH];
+		if(!GetClientAuthId(client, AuthId_SteamID64, buffer, PLATFORM_MAX_PATH))
 			return;
 
-		char buffer[PLATFORM_MAX_PATH];
-		BuildPath(Path_SM, buffer, PLATFORM_MAX_PATH, DATA_PLAYERS, this.Id);
+		BuildPath(Path_SM, buffer, PLATFORM_MAX_PATH, DATA_PLAYERS, buffer);
 		File file = OpenFile(buffer, "w");
 		if(file == null)
 			return;
@@ -590,7 +579,7 @@ public Action Inventory(int client)
 			if(ITEM < 1)
 				break;
 
-			if(Inv[client][ITEM].Count < 1)
+			if(Item[ITEM].Items[0]<1 && Inv[client][ITEM].Count<1)
 				continue;
 
 			items = true;
@@ -733,7 +722,7 @@ public int InventoryItemH(Menu panel, MenuAction action, int client, int choice)
 	{
 		case 1:
 		{
-			if(Inv[client][item].Count > 1)
+			if(Inv[client][item].Count > 0)
 			{
 				UseItem(client);
 				if(Inv[client][item].Count < 1)

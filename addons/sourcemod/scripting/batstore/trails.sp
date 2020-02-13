@@ -94,7 +94,7 @@ public void Trail_Create(int userid)
 		return;
 	}
 
-	Trail[client].Entity  = CreateEntityByName("env_spritetrail");
+	Trail[client].Entity = CreateEntityByName("env_spritetrail");
 	SetEntPropFloat(Trail[client].Entity, Prop_Send, "m_flTextureRes", 0.05);
 
 	char temp[17];
@@ -158,5 +158,5 @@ public Action Trail_Transmit(int entity, int client)
 	if(GameType != Engine_TF2)
 		return Plugin_Continue;
 
-	return (TF2_GetClientTeam(TrailOwner[entity])!=TF2_GetClientTeam(client) && (TF2_IsPlayerInCondition(TrailOwner[entity], TFCond_Cloaked) || TF2_IsPlayerInCondition(TrailOwner[entity], TFCond_Stealthed))) ? Plugin_Handled : Plugin_Continue;
+	return (GetClientTeam(TrailOwner[entity])!=GetClientTeam(client) && (TF2_IsPlayerInCondition(TrailOwner[entity], TFCond_Cloaked) || TF2_IsPlayerInCondition(TrailOwner[entity], TFCond_Stealthed))) ? Plugin_Handled : Plugin_Continue;
 }

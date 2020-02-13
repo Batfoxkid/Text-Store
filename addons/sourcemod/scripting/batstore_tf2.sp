@@ -78,7 +78,7 @@ public void OnPluginStart()
 	CashTeam = CreateConVar("batstore_cash_team", "0", "Amount gained to the team upon winning the match.");
 
 	HookEvent("teamplay_capture_blocked", OnPointBlock);
-	CashDefense = CreateConVar("batstore_cash_block", "0", "Amount gained to a defending player.");
+	CashDefend = CreateConVar("batstore_cash_block", "0", "Amount gained to a defending player.");
 
 	HookEvent("teamplay_teambalanced_player", OnBalance);
 	CashBalance = CreateConVar("batstore_cash_balance", "0", "Amount gained to an autobalanced player.");
@@ -468,7 +468,7 @@ public void OnDeflect(Event event, const char[] name, bool dontBroadcast)
 
 	client = GetClientOfUserId(event.GetInt("userid"));
 	if(IsValidClient(client))
-		AddCash(client, CashDeflect.IntValue);
+		AddCash(client, CashAirblast.IntValue);
 }
 
 /*
@@ -505,8 +505,25 @@ public void OnScore(Event event, const char[] name, bool dontBroadcast)
 		AddCash(client, RoundFloat(event.GetInt("delta")*CashScore.FloatValue));
 }
 
+stock bool IsValidClient(int client, bool replaycheck=true)
+{
+	if(client<=0 || client>MaxClients)
+		return false;
 
-stock AddCash(int client, int amount)
+	if(!IsClientInGame(client))
+		return false;
+
+	if(GetEntProp(client, Prop_Send, "m_bIsCoaching"))
+		return false;
+
+	if(replaycheck && (IsClientSourceTV(client) || IsClientReplay(client)))
+		return false;
+
+	return true;
+}
+
+
+stock void AddCash(int client, int amount)
 {
 	if(amount)
 		BatStore_Cash(client, amount);
