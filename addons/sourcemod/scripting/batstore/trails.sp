@@ -46,10 +46,18 @@ public ItemResult Trail_Use(int client, bool equipped, KeyValues item, int index
 		return Item_None;
 	}
 
-	int color[4] = {255, 255, 255, 255};
+	int color[4];
 	static char buffer[MAX_MATERIAL_LENGTH];
 	item.GetString("material", buffer, MAX_MATERIAL_LENGTH);
 	item.GetColor4("color", color);
+	if(!color[3])
+	{
+		for(int i; i<4; i++)
+		{
+			color[i] = 255;
+		}
+	}
+
 	Trail[client].Setup(buffer, item.GetFloat("width", 10.0), color);
 	RequestFrame(Trail_Create, GetClientUserId(client));
 	return Item_On;
