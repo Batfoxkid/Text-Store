@@ -22,7 +22,7 @@ jobs:
       
       - name: Set Version
         run: |
-          DATE=$(date "+%y%j%H%M)
+          DATE=$(date "+%y%j%H%M")
       
       - name: Compile
         run: |
