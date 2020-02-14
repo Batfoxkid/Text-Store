@@ -59,6 +59,14 @@ ConVar CashBoss;
 ConVar CashMvM;
 ConVar CashScore;
 
+public Plugin myinfo =
+{
+	name		=	"The Bat Store: TF2 Events",
+	author		=	"Batfoxkid",
+	description	=	"Generic game events for gaining credits",
+	version		=	PLUGIN_VERSION
+};
+
 public void OnPluginStart()
 {
 	HookEvent("player_death", OnDeath);
@@ -528,3 +536,5 @@ stock void AddCash(int client, int amount)
 	if(amount)
 		BatStore_Cash(client, amount);
 }
+
+#file "Bat Store: TF2 Events"
