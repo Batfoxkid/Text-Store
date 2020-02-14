@@ -7,7 +7,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.2.2"
+#define PLUGIN_VERSION "0.2.3"
 
 #define FAR_FUTURE		100000000.0
 #define MAX_SOUND_LENGTH	80
@@ -378,7 +378,7 @@ public void Main(int client)
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
-public any MainH(Menu menu, MenuAction action, int client, int choice)
+public int MainH(Menu menu, MenuAction action, int client, int choice)
 {
 	switch(action)
 	{
@@ -484,7 +484,7 @@ public void Store(int client)
 	panel.Send(client, StoreItemH, MENU_TIME_FOREVER);
 }
 
-public any StoreH(Menu menu, MenuAction action, int client, int choice)
+public int StoreH(Menu menu, MenuAction action, int client, int choice)
 {
 	switch(action)
 	{
@@ -519,7 +519,7 @@ public any StoreH(Menu menu, MenuAction action, int client, int choice)
 	}
 }
 
-public any StoreItemH(Menu panel, MenuAction action, int client, int choice)
+public int StoreItemH(Menu panel, MenuAction action, int client, int choice)
 {
 	if(action != MenuAction_Select)
 		return;
@@ -645,7 +645,7 @@ public Action Inventory(int client)
 	panel.Send(client, InventoryItemH, MENU_TIME_FOREVER);
 }
 
-public any InventoryH(Menu menu, MenuAction action, int client, int choice)
+public int InventoryH(Menu menu, MenuAction action, int client, int choice)
 {
 	switch(action)
 	{
@@ -680,7 +680,7 @@ public any InventoryH(Menu menu, MenuAction action, int client, int choice)
 	}
 }
 
-public any InventoryItemH(Menu panel, MenuAction action, int client, int choice)
+public int InventoryItemH(Menu panel, MenuAction action, int client, int choice)
 {
 	if(action != MenuAction_Select)
 		return;
