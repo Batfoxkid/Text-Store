@@ -61,7 +61,7 @@ ConVar CashScore;
 
 public Plugin myinfo =
 {
-	name		=	"The Bat Store: TF2 Events",
+	name		=	"The Text Store: TF2 Events",
 	author		=	"Batfoxkid",
 	description	=	"Generic game events for gaining credits",
 	version		=	PLUGIN_VERSION
@@ -537,4 +537,4 @@ stock void AddCash(int client, int amount)
 		BatStore_Cash(client, amount);
 }
 
-#file "Bat Store: TF2 Events"
+#file "Text Store: TF2 Events"
