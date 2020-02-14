@@ -302,9 +302,10 @@ void ReadCategory(int parent)
 			Item[MaxItems].Admin = ReadFlagString(buffer);
 
 			Item[MaxItems].Cost = StoreKv.GetNum("cost");
-			Item[MaxItems].Hidden = (!GetRandomInt(0, 5) || StoreKv.GetNum("hidden"));
+			Item[MaxItems].Hidden = view_as<bool>(StoreKv.GetNum("hidden", GetRandomInt(0, 5) ? 0 : 1));
 			Item[MaxItems].Stack = view_as<bool>(StoreKv.GetNum("stack", 1));
 			Item[MaxItems].Trade = view_as<bool>(StoreKv.GetNum("trade"));
+			Item[MaxItems].Slot = StoreKv.GetNum("slot");
 			StoreKv.GetString("plugin", Item[MaxItems].Plugin, MAX_PLUGIN_LENGTH);
 			StoreKv.GetString("desc", Item[MaxItems].Desc, MAX_DESC_LENGTH, "No Description");
 			Item[MaxItems].Sell = StoreKv.GetNum("sell", RoundFloat(Item[MaxItems].Cost*SELLRATIO));
@@ -809,7 +810,7 @@ void UseItem(int client)
 			}
 			case Item_On:
 			{
-				if(!Inv[client][item].Equip)
+				if(!Inv[client][item].Equip && Item[item].Slot)
 				{
 					for(int i=1; i<=MaxItems; i++)
 					{
