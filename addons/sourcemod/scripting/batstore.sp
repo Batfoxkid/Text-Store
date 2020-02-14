@@ -978,4 +978,4 @@ public any Native_Cash(Handle plugin, int numParams)
 	return Client[client].Cash;
 }
 
-#file "Bat Store"
+#file "Text Store"
