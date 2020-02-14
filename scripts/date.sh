@@ -1,3 +1,3 @@
 SEC=$(date "+%s")
-HOUR=$(expr $((SEC)) / 3600)
-echo ::set-env name=DATE_VERSION::$HOUR
+MIN=$(expr $((SEC)) / 60)
+echo ::set-env name=DATE_VERSION::$MIN
