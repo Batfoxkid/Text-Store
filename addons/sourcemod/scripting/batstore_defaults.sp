@@ -167,4 +167,4 @@ public void OnArenaRoundStart(Event event, const char[] name, bool dontBroadcast
 	#endif
 }
 
-#file "Bat Store: Defaults"
+#file "Text Store: Defaults"
