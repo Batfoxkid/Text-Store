@@ -120,7 +120,7 @@ public ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, 
 
 public void FF2_OnArenaRoundStart()
 {
-	if(GetFeatureStatus(FeatureType_Native, "FF2_GetBossSpecial") != FeatureStatus_Available)
+	if(GetFeatureStatus(FeatureType_Native, "FF2_SelectBoss") != FeatureStatus_Available)
 		return;
 
 	for(int client=1; client<=MaxClients; client++)
