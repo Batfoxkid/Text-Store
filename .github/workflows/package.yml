@@ -39,5 +39,5 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@master
         with:
-          name: Bat-Store-${{DATE}}
+          name: Bat-Store-$((DATE))
           path: ./build/package
