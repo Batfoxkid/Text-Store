@@ -22,7 +22,7 @@ jobs:
       
       - name: Set Version
         run: |
-          DATE=$(date "+%y%j%H%M")
+          bash scripts/date.sh
       
       - name: Compile
         run: |
@@ -39,5 +39,5 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@master
         with:
-          name: Bat-Store-$((DATE))
+          name: Bat-Store-${{env.DATE_VERSION}}
           path: ./build/package
