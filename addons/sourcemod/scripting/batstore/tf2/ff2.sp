@@ -71,7 +71,7 @@ public ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, 
 					if(!IsValidClient(target))
 						continue;
 
-					FF2_GetBossName(i, boss, sizeof(boss), 1, target);
+					FF2_GetName(i, boss, sizeof(boss), 1, target);
 					SPrintToChat(target, "%s%s%s is now unlocked for the map duration!", STORE_COLOR2, buffer, STORE_COLOR);
 				}
 				used = true;
@@ -102,7 +102,7 @@ public ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, 
 					strcopy(FF2Selection[client], sizeof(FF2Selection[]), boss);
 					FF2StoreIndex[client] = index;
 				}
-				FF2_GetBossName(i, boss, sizeof(boss), 1, client);
+				FF2_GetName(i, boss, sizeof(boss), 1, client);
 				SPrintToChat(client, "%s%s%s is now selected!", STORE_COLOR2, boss, STORE_COLOR);
 				used = true;
 				break;
@@ -163,5 +163,17 @@ public Action BatStore_OnSellItem(int client, int item, int cash, int &count, in
 
 	SPrintToChat(client, "You can not sell this item right now!");
 	return Plugin_Handled;
+}
+
+stock void FF2_GetName(int boss, char[] buffer, int length, int mode, int client)
+{
+	if(GetFeatureStatus(FeatureType_Native, "FF2_GetBossName") == FeatureStatus_Available)
+	{
+		FF2_GetBossName(boss, buffer, length, mode, client);
+	}
+	else
+	{
+		FF2_GetBossSpecial(boss, buffer, length, mode);
+	}
 }
 #endif
