@@ -41,7 +41,7 @@ ConVar CashEntity;
 
 public Plugin myinfo =
 {
-	name		=	"The Bat Store: Generic Events",
+	name		=	"The Text Store: Generic Events",
 	author		=	"Batfoxkid",
 	description	=	"Generic game events for gaining credits",
 	version		=	PLUGIN_VERSION
@@ -181,4 +181,4 @@ stock void AddCash(int client, int amount)
 		BatStore_Cash(client, amount);
 }
 
-#file "Bat Store: Generic Events"
+#file "Text Store: Generic Events"
