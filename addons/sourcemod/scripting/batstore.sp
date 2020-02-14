@@ -35,7 +35,7 @@
 #define ITEM	Item[item].Items[i]
 
 #define DATA_PLAYERS	"data/batstore/user/%s.txt"
-#define DATA_STORE	"data/batstore/store.cfg"
+#define DATA_STORE	"configs/batstore/store.cfg"
 
 #define SELLRATIO	0.75
 #define MAXITEMS	256
