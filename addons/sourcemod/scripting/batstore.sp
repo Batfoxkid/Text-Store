@@ -9,7 +9,7 @@
 
 #define MAJOR_REVISION	"0"
 #define MINOR_REVISION	"2"
-#define STABLE_REVISION	"0"
+#define STABLE_REVISION	"1"
 #define PLUGIN_VERSION MAJOR_REVISION..."."...MINOR_REVISION..."."...STABLE_REVISION
 
 #define FAR_FUTURE		100000000.0
@@ -380,7 +380,7 @@ public void Main(int client)
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
-public int MainH(Menu menu, MenuAction action, int client, int choice)
+public any MainH(Menu menu, MenuAction action, int client, int choice)
 {
 	switch(action)
 	{
@@ -459,6 +459,8 @@ public void Store(int client)
 	}
 	panel.DrawText(buffer);
 
+	panel.DrawItem((Inv[client][item].Count>0 && Inv[client][item].Equip) ? "Disactivate Item" : "Activate Item", Inv[client][item].Count>0 ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+
 	FormatEx(buffer, MAX_ITEM_LENGTH, "Buy (%i Credits)", Item[item].Cost);
 	if((!Item[item].Stack && Inv[client][item].Count>0) || Client[client].Cash<Item[item].Cost)
 	{
@@ -484,7 +486,7 @@ public void Store(int client)
 	panel.Send(client, StoreItemH, MENU_TIME_FOREVER);
 }
 
-public int StoreH(Menu menu, MenuAction action, int client, int choice)
+public any StoreH(Menu menu, MenuAction action, int client, int choice)
 {
 	switch(action)
 	{
@@ -519,7 +521,7 @@ public int StoreH(Menu menu, MenuAction action, int client, int choice)
 	}
 }
 
-public int StoreItemH(Menu panel, MenuAction action, int client, int choice)
+public any StoreItemH(Menu panel, MenuAction action, int client, int choice)
 {
 	if(action != MenuAction_Select)
 		return;
@@ -529,13 +531,18 @@ public int StoreItemH(Menu panel, MenuAction action, int client, int choice)
 	{
 		case 1:
 		{
+			if(Inv[client][item].Count > 0)
+				UseItem(client);
+		}
+		case 2:
+		{
 			if((Item[item].Stack || Inv[client][item].Count<1) && Client[client].Cash>=Item[item].Cost)
 			{
 				Inv[client][item].Count++;
 				Client[client].Cash -= Item[item].Cost;
 			}
 		}
-		case 2:
+		case 3:
 		{
 			SellItem(client, item);
 		}
@@ -614,6 +621,17 @@ public Action Inventory(int client)
 	panel.DrawText(buffer);
 
 	panel.DrawItem(Inv[client][item].Equip ? "Disactivate Item" : "Activate Item");
+
+	FormatEx(buffer, MAX_ITEM_LENGTH, "Buy (%i Credits)", Item[item].Cost);
+	if((!Item[item].Stack && Inv[client][item].Count>0) || Client[client].Cash<Item[item].Cost)
+	{
+		panel.DrawItem(buffer, ITEMDRAW_DISABLED);
+	}
+	else
+	{
+		panel.DrawItem(buffer);
+	}
+
 	if(Item[item].Sell > 0)
 	{
 		FormatEx(buffer, MAX_ITEM_LENGTH, "Sell (%i Credits)", Item[item].Sell);
@@ -629,7 +647,7 @@ public Action Inventory(int client)
 	panel.Send(client, InventoryItemH, MENU_TIME_FOREVER);
 }
 
-public int InventoryH(Menu menu, MenuAction action, int client, int choice)
+public any InventoryH(Menu menu, MenuAction action, int client, int choice)
 {
 	switch(action)
 	{
@@ -664,55 +682,7 @@ public int InventoryH(Menu menu, MenuAction action, int client, int choice)
 	}
 }
 
-/*public int InventoryItemH(Menu menu, MenuAction action, int client, int choice)
-{
-	switch(action)
-	{
-		case MenuAction_End:
-		{
-			delete menu;
-		}
-		case MenuAction_Cancel:
-		{
-			if(choice != MenuCancel_ExitBack)
-				return;
-
-			Client[client].RemovePos();
-			Inventory(client);
-		}
-		case MenuAction_Select:
-		{
-			static char buffer[MAX_NUM_LENGTH];
-			menu.GetItem(choice, buffer, MAX_NUM_LENGTH);
-			int num = StringToInt(buffer);
-			int item = Client[client].GetPos();
-			switch(num)
-			{
-				case 1:
-				{
-					if(Inv[client][item].Count>0 && Item[item].Sell>0)
-					{
-						Inv[client][item].Count--;
-						Client[client].Cash += Item[item].Sell;
-						if(Inv[client][item].Count < 1)
-						{
-							Client[client].RemovePos();
-							Inv[client][item].Equip = false;
-						}
-					}
-				}
-				case 2:
-				{
-					if(Inv[client][item].Count > 1)
-						UseItem(client, item);
-				}
-			}
-			Inventory(client);
-		}
-	}
-}*/
-
-public int InventoryItemH(Menu panel, MenuAction action, int client, int choice)
+public any InventoryItemH(Menu panel, MenuAction action, int client, int choice)
 {
 	if(action != MenuAction_Select)
 		return;
@@ -731,7 +701,17 @@ public int InventoryItemH(Menu panel, MenuAction action, int client, int choice)
 		}
 		case 2:
 		{
+			if((Item[item].Stack || Inv[client][item].Count<1) && Client[client].Cash>=Item[item].Cost)
+			{
+				Inv[client][item].Count++;
+				Client[client].Cash -= Item[item].Cost;
+			}
+		}
+		case 3:
+		{
 			SellItem(client, item);
+			if(Inv[client][item].Count < 1)
+				Client[client].RemovePos();
 		}
 		case 10:
 		{
