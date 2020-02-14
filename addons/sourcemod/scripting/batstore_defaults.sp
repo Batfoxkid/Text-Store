@@ -16,10 +16,7 @@
 
 #pragma newdecls required
 
-#define MAJOR_REVISION	"0"
-#define MINOR_REVISION	"1"
-#define STABLE_REVISION	"0"
-#define PLUGIN_VERSION MAJOR_REVISION..."."...MINOR_REVISION..."."...STABLE_REVISION
+#define PLUGIN_VERSION "0.1.1"
 
 #define FAR_FUTURE		100000000.0
 #define MAX_SOUND_LENGTH	80
