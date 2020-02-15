@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 #include <morecolors>
-#include <batstore>
+#include <textstore>
 #include <sdkhooks>
 
 #undef REQUIRE_EXTENSIONS
@@ -107,15 +107,15 @@ stock bool IsValidClient(int client, bool replaycheck=true)
 
 // Modules
 
-#tryinclude "batstore/command.sp"
-#tryinclude "batstore/trails.sp"
-#tryinclude "batstore/tvip.sp"
-#tryinclude "batstore/voting.sp"
-#tryinclude "batstore/tf2/ff2.sp"
+#tryinclude "textstore/command.sp"
+#tryinclude "textstore/trails.sp"
+#tryinclude "textstore/tvip.sp"
+#tryinclude "textstore/voting.sp"
+#tryinclude "textstore/tf2/ff2.sp"
 
 // Store Events
 
-public ItemResult BatStore_Item(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
+public ItemResult TextStore_Item(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
 {
 	float engineTime = GetEngineTime();
 	if(Delay[client] > engineTime)

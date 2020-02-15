@@ -27,10 +27,10 @@ jobs:
       - name: Compile
         run: |
           cd build/addons/sourcemod/scripting
-          ./spcomp batstore.sp -o ../plugins/batstore.smx
-          ./spcomp batstore_defaults.sp -o ../plugins/batstore_defaults.smx
-          ./spcomp batstore_generic.sp -o ../plugins/batstore_generic.smx
-          ./spcomp batstore_tf2.sp -o ../plugins/batstore_tf2.smx
+          ./spcomp textstore.sp -o ../plugins/textstore.smx
+          ./spcomp textstore_defaults.sp -o ../plugins/textstore_defaults.smx
+          ./spcomp textstore_generic.sp -o ../plugins/textstore_generic.smx
+          ./spcomp textstore_tf2.sp -o ../plugins/textstore_tf2.smx
       
       - name: Package
         run: |

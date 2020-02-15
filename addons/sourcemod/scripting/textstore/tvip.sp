@@ -11,7 +11,7 @@ public ItemResult tVip_Use(int client, bool equipped, KeyValues item, int index,
 
 	if(GetFeatureStatus(FeatureType_Native, "tVip_GrantVip") != FeatureStatus_Available)
 	{
-		if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
+		if(CheckCommandAccess(client, "textstore_dev", ADMFLAG_RCON))
 		{
 			char buffer[64];
 			item.GetString("plugin", buffer, sizeof(buffer));

@@ -1,7 +1,7 @@
 *.dat
 *.exe
 *.smx
-!batstore.inc
+!textstore.inc
 [Ii]nclude/
 [Cc]compiled/
 [Dd]esktop.ini

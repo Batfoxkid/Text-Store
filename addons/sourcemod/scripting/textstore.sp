@@ -3,7 +3,7 @@
 #include <sourcemod>
 #include <morecolors>
 #include <sdkhooks>
-#include <batstore>
+#include <textstore>
 
 #pragma newdecls required
 
@@ -31,8 +31,8 @@
 
 #define ITEM	Item[item].Items[i]
 
-#define DATA_PLAYERS	"data/batstore/user/%s.txt"
-#define DATA_STORE	"configs/batstore/store.cfg"
+#define DATA_PLAYERS	"data/textstore/user/%s.txt"
+#define DATA_STORE	"configs/textstore/store.cfg"
 
 #define SELLRATIO	0.75
 #define MAXITEMS	256
@@ -210,12 +210,12 @@ public Plugin myinfo =
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-	CreateNative("BatStore_GetInv", Native_GetInv);
-	CreateNative("BatStore_SetInv", Native_SetInv);
-	CreateNative("BatStore_Cash", Native_Cash);
-	OnSellItem = new GlobalForward("BatStore_OnSellItem", ET_Hook, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
+	CreateNative("TextStore_GetInv", Native_GetInv);
+	CreateNative("TextStore_SetInv", Native_SetInv);
+	CreateNative("TextStore_Cash", Native_Cash);
+	OnSellItem = new GlobalForward("TextStore_OnSellItem", ET_Hook, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 
-	RegPluginLibrary("batstore");
+	RegPluginLibrary("textstore");
 	return APLRes_Success;
 }
 
@@ -432,7 +432,7 @@ public void Store(int client)
 
 			static char buffer[MAX_NUM_LENGTH];
 			IntToString(ITEM, buffer, MAX_NUM_LENGTH);
-			menu.AddItem(buffer, Item[ITEM].Name, CheckCommandAccess(client, "batstore_all", Item[ITEM].Admin, true) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+			menu.AddItem(buffer, Item[ITEM].Name, CheckCommandAccess(client, "textstore_all", Item[ITEM].Admin, true) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 		}
 
 		menu.ExitBackButton = true;
@@ -744,7 +744,7 @@ void UseItem(int client)
 
 			if(!StoreKv.GotoNextKey())
 			{
-				if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
+				if(CheckCommandAccess(client, "textstore_dev", ADMFLAG_RCON))
 				{
 					SPrintToChat(client, "%s doesn't exist anymore?", Item[item].Name);
 				}
@@ -766,12 +766,12 @@ void UseItem(int client)
 		if(StrContains(buffer, Item[item].Plugin, false) == -1)
 			continue;
 
-		Function func = GetFunctionByName(plugin, "BatStore_Item");
+		Function func = GetFunctionByName(plugin, "TextStore_Item");
 		if(func == INVALID_FUNCTION)
 		{
-			if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
+			if(CheckCommandAccess(client, "textstore_dev", ADMFLAG_RCON))
 			{
-				SPrintToChat(client, "%s is missing function BatStore_Item from %s!", Item[item].Name, Item[item].Plugin);
+				SPrintToChat(client, "%s is missing function TextStore_Item from %s!", Item[item].Name, Item[item].Plugin);
 			}
 			else
 			{
@@ -793,7 +793,7 @@ void UseItem(int client)
 
 		// Somebody closed the damn kv
 		if(StoreKv == INVALID_HANDLE)
-			SetFailState("'%s' is not allowed to close KeyValues Handle for 'batstore.smx' in 'BatStore_Item'!", buffer);
+			SetFailState("'%s' is not allowed to close KeyValues Handle for 'textstore.smx' in 'TexTStore_Item'!", buffer);
 
 		switch(result)
 		{
@@ -830,7 +830,7 @@ void UseItem(int client)
 	}
 
 	delete iter;
-	if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
+	if(CheckCommandAccess(client, "textstore_dev", ADMFLAG_RCON))
 	{
 		SPrintToChat(client, "%s is missing plugin %s!", Item[item].Name, Item[item].Plugin);
 	}

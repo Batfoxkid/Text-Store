@@ -7,7 +7,7 @@ public ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, 
 {
 	if(GameType != Engine_TF2)
 	{
-		if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
+		if(CheckCommandAccess(client, "textstore_dev", ADMFLAG_RCON))
 		{
 			SPrintToChat(client, "Incorrect game type for %s", name);
 		}
@@ -21,7 +21,7 @@ public ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, 
 	static char buffer[64];
 	if(GetFeatureStatus(FeatureType_Native, "FF2_GetQueuePoints") != FeatureStatus_Available)
 	{
-		if(CheckCommandAccess(client, "batstore_dev", ADMFLAG_RCON))
+		if(CheckCommandAccess(client, "textstore_dev", ADMFLAG_RCON))
 		{
 			item.GetString("plugin", buffer, sizeof(buffer));
 			SPrintToChat(client, "%s can't find Freak Fortress 2 natives!", buffer);
@@ -143,7 +143,7 @@ public void FF2_OnArenaRoundStart()
 		FF2_SelectBoss(client, "", false);
 
 		int items;
-		BatStore_GetInv(client, FF2StoreIndex[client], items);
+		TextStore_GetInv(client, FF2StoreIndex[client], items);
 		if(items < 1)
 		{
 			LogError("Exploit detected with Select FF2 Item! Client: %N Index: %i Count: %i Boss: %s", client, FF2StoreIndex[client], items, FF2Selection[client]);
@@ -152,11 +152,11 @@ public void FF2_OnArenaRoundStart()
 		}
 
 		FF2StoreIndex[client] = 0;
-		BatStore_SetInv(client, FF2StoreIndex[client], items-1, items==1 ? 0 : -1);
+		TextStore_SetInv(client, FF2StoreIndex[client], items-1, items==1 ? 0 : -1);
 	}
 }
 
-public Action BatStore_OnSellItem(int client, int item, int cash, int &count, int &sell)
+public Action TextStore_OnSellItem(int client, int item, int cash, int &count, int &sell)
 {
 	if(count>1 || FF2StoreIndex[client]!=item)
 		return Plugin_Continue;

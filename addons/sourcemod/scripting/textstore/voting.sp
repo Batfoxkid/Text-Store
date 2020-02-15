@@ -69,11 +69,11 @@ public int Vote_UseH(Menu menu, MenuAction action, int choice, int param)
 			}
 
 			int items;
-			BatStore_GetInv(client, VoteIndex, items);
+			TextStore_GetInv(client, VoteIndex, items);
 			if(items < 1)
 				return;
 
-			BatStore_SetInv(client, VoteIndex, items-1, items==1 ? 0 : -1);
+			TextStore_SetInv(client, VoteIndex, items-1, items==1 ? 0 : -1);
 			if(VoteMap)
 			{
 				ConVar timelimit = FindConVar("mp_timelimit");
