@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 #include <morecolors>
-#include <batstore>
+#include <textstore>
 #include <tf2_stocks>
 
 #pragma newdecls required
@@ -67,73 +67,73 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	HookEvent("player_death", OnDeath);
-	CashKill = CreateConVar("batstore_cash_kill", "0", "Amount gained on a player kill.");
-	CashAssist = CreateConVar("batstore_cash_assist", "0", "Amount gained on a player assist.");
+	CashKill = CreateConVar("textstore_cash_kill", "0", "Amount gained on a player kill.");
+	CashAssist = CreateConVar("textstore_cash_assist", "0", "Amount gained on a player assist.");
 
 	HookEvent("teamplay_flag_event", OnFlagCapture);
-	CashFlag = CreateConVar("batstore_cash_flag", "0", "Amount gained on a briefcase capture.");
+	CashFlag = CreateConVar("textstore_cash_flag", "0", "Amount gained on a briefcase capture.");
 
 	HookEventEx("ctf_flag_captured", OnFlagTeamCapture);
-	CashTeamFlag = CreateConVar("batstore_cash_team_flag", "0", "Amount gained to the team upon capturing the briefcase.");
+	CashTeamFlag = CreateConVar("textstore_cash_team_flag", "0", "Amount gained to the team upon capturing the briefcase.");
 
 	HookEvent("teamplay_point_captured", OnPointTeamCapture);
-	CashTeamPoint = CreateConVar("batstore_cash_team_point", "0", "Amount gained to the team upon capturing the control point.");
+	CashTeamPoint = CreateConVar("textstore_cash_team_point", "0", "Amount gained to the team upon capturing the control point.");
 
 	HookEvent("teamplay_round_win", OnRoundEnd);
-	CashTeam = CreateConVar("batstore_cash_team", "0", "Amount gained to the team upon winning the match.");
+	CashTeam = CreateConVar("textstore_cash_team", "0", "Amount gained to the team upon winning the match.");
 
 	HookEvent("teamplay_capture_blocked", OnPointBlock);
-	CashDefend = CreateConVar("batstore_cash_block", "0", "Amount gained to a defending player.");
+	CashDefend = CreateConVar("textstore_cash_block", "0", "Amount gained to a defending player.");
 
 	HookEvent("teamplay_teambalanced_player", OnBalance);
-	CashBalance = CreateConVar("batstore_cash_balance", "0", "Amount gained to an autobalanced player.");
+	CashBalance = CreateConVar("textstore_cash_balance", "0", "Amount gained to an autobalanced player.");
 
 	HookEvent("object_destroyed", OnDestroy);
-	CashDestroy = CreateConVar("batstore_cash_destroy", "0", "Amount gained on a building kill.");
-	CashDestroy2 = CreateConVar("batstore_cash_destroy2", "0", "Amount gained on a building assist.");
+	CashDestroy = CreateConVar("textstore_cash_destroy", "0", "Amount gained on a building kill.");
+	CashDestroy2 = CreateConVar("textstore_cash_destroy2", "0", "Amount gained on a building assist.");
 
 	HookEvent("player_extinguished", OnExtinguish);
-	CashExtinguish = CreateConVar("batstore_cash_extinguish", "0", "Amount gained on an extinguish.");
+	CashExtinguish = CreateConVar("textstore_cash_extinguish", "0", "Amount gained on an extinguish.");
 
 	HookEvent("player_teleported", OnTeleport);
-	CashTeleport = CreateConVar("batstore_cash_teleport", "0", "Amount gained on a teleport.");
+	CashTeleport = CreateConVar("textstore_cash_teleport", "0", "Amount gained on a teleport.");
 
 	HookEvent("player_hurt", OnHurt);
-	CashDamage = CreateConVar("batstore_cash_damage", "0", "Amount of damage dealt per cash.");
+	CashDamage = CreateConVar("textstore_cash_damage", "0", "Amount of damage dealt per cash.");
 
 	HookEvent("player_healed", OnHeal);
 	HookEvent("building_healed", OnBuildingHeal);
-	CashHeal = CreateConVar("batstore_cash_heal", "0", "Amount of damage healed per cash.");
+	CashHeal = CreateConVar("textstore_cash_heal", "0", "Amount of damage healed per cash.");
 
 	HookEvent("teamplay_win_panel", OnRoundPanel);
 	HookEventEx("arena_win_panel", OnRoundPanel);
-	CashMvp1 = CreateConVar("batstore_cash_mvp1", "0", "Amount gained to the 1st place MVP.");
-	CashMvp2 = CreateConVar("batstore_cash_mvp2", "0", "Amount gained to the 2nd place MVP.");
-	CashMvp3 = CreateConVar("batstore_cash_mvp3", "0", "Amount gained to the 3rd place MVP.");
+	CashMvp1 = CreateConVar("textstore_cash_mvp1", "0", "Amount gained to the 1st place MVP.");
+	CashMvp2 = CreateConVar("textstore_cash_mvp2", "0", "Amount gained to the 2nd place MVP.");
+	CashMvp3 = CreateConVar("textstore_cash_mvp3", "0", "Amount gained to the 3rd place MVP.");
 
 	HookEvent("player_stunned", OnStun);
 	HookEvent("eyeball_boss_stunned", OnEyeball);
-	CashStun = CreateConVar("batstore_cash_stun", "0", "Amount gained on a stun.");
+	CashStun = CreateConVar("textstore_cash_stun", "0", "Amount gained on a stun.");
 
 	HookEvent("player_jarated", OnJarate);
-	CashJarate = CreateConVar("batstore_cash_jarate", "0", "Amount gained on a jarate hit.");
+	CashJarate = CreateConVar("textstore_cash_jarate", "0", "Amount gained on a jarate hit.");
 
 	HookEvent("medic_death", OnMedic);
-	CashMedic = CreateConVar("batstore_cash_medic", "0", "Amount gained on a fully charged Medic kill.");
+	CashMedic = CreateConVar("textstore_cash_medic", "0", "Amount gained on a fully charged Medic kill.");
 
 	HookEvent("object_deflected", OnDeflect);
-	CashAirblast = CreateConVar("batstore_cash_airblast", "0", "Amount gained on an airblast.");
+	CashAirblast = CreateConVar("textstore_cash_airblast", "0", "Amount gained on an airblast.");
 
 	HookEvent("pumpkin_lord_killed", OnBoss, EventHookMode_PostNoCopy);
 	HookEvent("merasmus_killed", OnBoss, EventHookMode_PostNoCopy);
 	HookEvent("eyeball_boss_killed", OnBoss, EventHookMode_PostNoCopy);
-	CashBoss = CreateConVar("batstore_cash_halloween", "0", "Amount gained to everyone on a boss killed.");
+	CashBoss = CreateConVar("textstore_cash_halloween", "0", "Amount gained to everyone on a boss killed.");
 
 	HookEventEx("mvm_mission_complete", OnMvM, EventHookMode_PostNoCopy);
-	CashMvM = CreateConVar("batstore_cash_mvm", "0.0", "Ratio of leftover cash kept.");
+	CashMvM = CreateConVar("textstore_cash_mvm", "0.0", "Ratio of leftover cash kept.");
 
 	HookEvent("player_score_changed", OnScore);
-	CashScore = CreateConVar("batstore_cash_score", "0.0", "Ratio of score gained to cash.");
+	CashScore = CreateConVar("textstore_cash_score", "0.0", "Ratio of score gained to cash.");
 
 	AutoExecConfig(true, "BatStore_TF2");
 }
@@ -531,7 +531,7 @@ stock bool IsValidClient(int client, bool replaycheck=true)
 stock void AddCash(int client, int amount)
 {
 	if(amount)
-		BatStore_Cash(client, amount);
+		TextStore_Cash(client, amount);
 }
 
 #file "Text Store: TF2 Events"

@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 #include <morecolors>
-#include <batstore>
+#include <textstore>
 
 #pragma newdecls required
 
@@ -47,19 +47,19 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	HookEventEx("player_death", OnDeath);
-	CashKill = CreateConVar("batstore_cash_kill", "0", "Amount gained on a player kill.");
+	CashKill = CreateConVar("textstore_cash_kill", "0", "Amount gained on a player kill.");
 
 	HookEventEx("round_end", OnRoundEnd);
-	CashWin = CreateConVar("batstore_cash_win", "0", "Amount gained on a player/team win.");
+	CashWin = CreateConVar("textstore_cash_win", "0", "Amount gained on a player/team win.");
 
 	HookEventEx("team_score", OnTeamScore);
-	CashTeamScore = CreateConVar("batstore_cash_team_score", "0.0", "Ratio of team score gained to cash.");
+	CashTeamScore = CreateConVar("textstore_cash_team_score", "0.0", "Ratio of team score gained to cash.");
 
 	HookEventEx("player_score", OnScore);
-	CashScore = CreateConVar("batstore_cash_score", "0.0", "Ratio of score gained to cash.");
+	CashScore = CreateConVar("textstore_cash_score", "0.0", "Ratio of score gained to cash.");
 
 	HookEventEx("entity_killed", OnKill);
-	CashEntity = CreateConVar("batstore_cash_entity_kill", "0", "Amount gained on an entity kill.");
+	CashEntity = CreateConVar("textstore_cash_entity_kill", "0", "Amount gained on an entity kill.");
 
 	AutoExecConfig(true, "BatStore_Generic");
 }
@@ -175,7 +175,7 @@ stock bool IsValidClient(int client, bool replaycheck=true)
 stock void AddCash(int client, int amount)
 {
 	if(amount)
-		BatStore_Cash(client, amount);
+		TextStore_Cash(client, amount);
 }
 
 #file "Text Store: Generic Events"

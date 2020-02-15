@@ -1,8 +1,8 @@
 *.dat
 *.exe
 *.smx
-!textstore.inc
-[Ii]nclude/
+*.inc
 [Cc]compiled/
 [Dd]esktop.ini
 [Tt]humbs.db
+!textstore.inc
