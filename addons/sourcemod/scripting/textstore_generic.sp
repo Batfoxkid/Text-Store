@@ -61,7 +61,7 @@ public void OnPluginStart()
 	HookEventEx("entity_killed", OnKill);
 	CashEntity = CreateConVar("textstore_cash_entity_kill", "0", "Amount gained on an entity kill.");
 
-	AutoExecConfig(true, "BatStore_Generic");
+	AutoExecConfig(true, "TextStore_Generic");
 }
 
 /*

@@ -135,7 +135,7 @@ public void OnPluginStart()
 	HookEvent("player_score_changed", OnScore);
 	CashScore = CreateConVar("textstore_cash_score", "0.0", "Ratio of score gained to cash.");
 
-	AutoExecConfig(true, "BatStore_TF2");
+	AutoExecConfig(true, "TextStore_TF2");
 }
 
 /*
