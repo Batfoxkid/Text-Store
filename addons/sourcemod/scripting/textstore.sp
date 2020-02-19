@@ -7,7 +7,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.2.3"
+#define PLUGIN_VERSION "0.2.4"
 
 #define FAR_FUTURE		100000000.0
 #define MAX_SOUND_LENGTH	80
@@ -708,8 +708,6 @@ public int InventoryItemH(Menu panel, MenuAction action, int client, int choice)
 		case 3:
 		{
 			SellItem(client, item);
-			if(Inv[client][item].Count < 1)
-				Client[client].RemovePos();
 		}
 		case 10:
 		{
@@ -842,7 +840,7 @@ void UseItem(int client)
 
 void SellItem(int client, int item)
 {
-	if(Inv[client][item].Count<1 || Item[item].Sell<1)
+	if(Inv[client][item].Count<1 || Item[item].Sell<1 || (Inv[client][item].Count<2 && Inv[client][item].Equip)
 		return;
 
 	int count = Inv[client][item].Count;
@@ -877,11 +875,8 @@ void SellItem(int client, int item)
 
 	Inv[client][item].Count--;
 	Client[client].Cash += sell;
-	if(Inv[client][item].Count > 0)
-		return;
-
-	Client[client].RemovePos();
-	Inv[client][item].Equip = false;
+	if(Inv[client][item].Count < 1)
+		Client[client].RemovePos();
 }
 
 // Stocks
