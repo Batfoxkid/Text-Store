@@ -840,7 +840,7 @@ void UseItem(int client)
 
 void SellItem(int client, int item)
 {
-	if(Inv[client][item].Count<1 || Item[item].Sell<1 || (Inv[client][item].Count<2 && Inv[client][item].Equip)
+	if(Inv[client][item].Count<1 || Item[item].Sell<1 || (Inv[client][item].Count<2 && Inv[client][item].Equip))
 		return;
 
 	int count = Inv[client][item].Count;
