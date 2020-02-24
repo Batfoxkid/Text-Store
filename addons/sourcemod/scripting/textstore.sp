@@ -10,7 +10,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.2.5"
+#define PLUGIN_VERSION "0.3.0"
 
 #define FAR_FUTURE		100000000.0
 #define MAX_SOUND_LENGTH	80
@@ -401,7 +401,7 @@ public Action CommandInven(int client, int args)
 
 // Menu Events
 
-public void Main(int client)
+void Main(int client)
 {
 	if(IsVoteInProgress())
 	{
@@ -442,7 +442,7 @@ public int MainH(Menu menu, MenuAction action, int client, int choice)
 	}
 }
 
-public void Store(int client)
+void Store(int client)
 {
 	if(IsVoteInProgress())
 	{
@@ -597,7 +597,7 @@ public int StoreItemH(Menu panel, MenuAction action, int client, int choice)
 	Store(client);
 }
 
-public Action Inventory(int client)
+void Inventory(int client)
 {
 	if(IsVoteInProgress())
 	{
@@ -762,8 +762,110 @@ public int InventoryItemH(Menu panel, MenuAction action, int client, int choice)
 	Inventory(client);
 }
 
-public int AdminMenuT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int param, char[] buffer, int maxlength)
+void AdminMenu(int client)
 {
+	if(!CheckCommandAccess(client, "sm_store_admin", ADMFLAG_ROOT))
+	{
+		PrintToChat(client, "[SM] %t", "Vote in Progress");
+		return;
+	}
+
+	if(IsVoteInProgress())
+	{
+		PrintToChat(client, "[SM] %t", "Vote in Progress");
+		return;
+	}
+
+	int item = Client[client].GetPos();
+	if(!item || Item[item].Items[0]>0)
+	{
+		Menu menu = new Menu(InventoryH);
+		if(item)
+		{
+			menu.SetTitle("Inventory: %s\n ", Item[item].Name);
+		}
+		else
+		{
+			menu.SetTitle("Inventory\n \nCredits: %i\n ", Client[client].Cash);
+		}
+
+		bool items;
+		for(int i; i<MAXONCE; i++)
+		{
+			if(ITEM < 1)
+				break;
+
+			if(Item[ITEM].Items[0]<1 && Inv[client][ITEM].Count<1)
+				continue;
+
+			items = true;
+			static char buffer[MAX_NUM_LENGTH];
+			IntToString(ITEM, buffer, MAX_NUM_LENGTH);
+			menu.AddItem(buffer, Item[ITEM].Name);
+		}
+
+		if(!items)
+			menu.AddItem("0", "No Items", ITEMDRAW_DISABLED);
+
+		menu.ExitBackButton = true;
+		menu.ExitButton = true;
+		menu.Display(client, MENU_TIME_FOREVER);
+		return;
+	}
+
+	Panel panel = new Panel();
+	char buffer[MAX_ITEM_LENGTH];
+	FormatEx(buffer, MAX_ITEM_LENGTH, "%s\n ", Item[item].Name);
+	panel.SetTitle(buffer);
+	panel.DrawText(Item[item].Desc);
+
+	if(Item[item].Stack)
+	{
+		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou have %i credits\nYou own %i\n ", Client[client].Cash, Inv[client][item].Count);
+	}
+	else
+	{
+		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou have %i credits\nYou %sown this item\n ", Client[client].Cash, Inv[client][item].Count<1 ? "don't " : "");
+	}
+	panel.DrawText(buffer);
+
+	panel.DrawItem(Inv[client][item].Equip ? "Disactivate Item" : "Activate Item");
+
+	FormatEx(buffer, MAX_ITEM_LENGTH, "Buy (%i Credits)", Item[item].Cost);
+	if((!Item[item].Stack && Inv[client][item].Count>0) || Client[client].Cash<Item[item].Cost)
+	{
+		panel.DrawItem(buffer, ITEMDRAW_DISABLED);
+	}
+	else
+	{
+		panel.DrawItem(buffer);
+	}
+
+	if(Item[item].Sell > 0)
+	{
+		FormatEx(buffer, MAX_ITEM_LENGTH, "Sell (%i Credits)", Item[item].Sell);
+		panel.DrawItem(buffer, Inv[client][item].Count>0 ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+	}
+
+	panel.DrawText(" ");
+	panel.CurrentKey = 8;
+	panel.DrawItem("Back");
+	panel.DrawText(" ");
+	panel.CurrentKey = 10;
+	panel.DrawItem("Exit");
+	panel.Send(client, InventoryItemH, MENU_TIME_FOREVER);
+}
+
+public void AdminMenuT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
+{
+	switch(action)
+	{
+		case TopMenuAction_DisplayOption:
+			strcopy(buffer, maxlength, "Admin Menu");
+
+		case TopMenuAction_SelectOption:
+			AdminMenu(client);
+	}
 }
 
 void UseItem(int client)
