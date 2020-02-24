@@ -1,13 +1,16 @@
 #pragma semicolon 1
 
 #include <sourcemod>
+#if !defined REQUIRE_PLUGIN
+#include <adminmenu>
+#endif
 #include <morecolors>
 #include <sdkhooks>
 #include <textstore>
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.2.4"
+#define PLUGIN_VERSION "0.2.5"
 
 #define FAR_FUTURE		100000000.0
 #define MAX_SOUND_LENGTH	80
@@ -34,6 +37,8 @@
 #define DATA_PLAYERS	"data/textstore/user/%s.txt"
 #define DATA_STORE	"configs/textstore/store.cfg"
 
+#define ADMINMENU_TEXTSTORE	"TextStoreCommands"
+
 #define SELLRATIO	0.75
 #define MAXITEMS	256
 #define MAXONCE		64
@@ -42,6 +47,7 @@
 KeyValues StoreKv;
 int MaxItems;
 GlobalForward OnSellItem; 
+TopMenu StoreTop;
 
 enum struct InvEnum
 {
@@ -228,9 +234,16 @@ public void OnPluginStart()
 
 	RegConsoleCmd("sm_inventory", CommandInven, "View your backpack of items");
 	RegConsoleCmd("sm_inven", CommandInven, "View your backpack of items");
+	RegConsoleCmd("sm_sell", CommandInven, "View your backpack of items");
 	RegConsoleCmd("sm_inv", CommandInven, "View your backpack of items");
 
+	RegAdminCmd("sm_store_admin", CommandAdmin, ADMFLAG_ROOT, "View the admin menu");
+
 	LoadTranslations("common.phrases");
+
+	TopMenu topmenu;
+	if(LibraryExists("adminmenu") && ((topmenu=GetAdminTopMenu())!=null))
+		OnAdminMenuReady(topmenu);
 }
 
 public void OnPluginEnd()
@@ -258,6 +271,33 @@ public void OnConfigsExecuted()
 		if(IsValidClient(i) && !IsFakeClient(i))
 			Client[i].Setup(i);
 	}
+}
+
+public void OnAdminMenuReady(Handle topmenu)
+{
+	TopMenu menu = TopMenu.FromHandle(topmenu);
+	if(menu == StoreTop)
+		return;
+
+	StoreTop = menu;
+	TopMenuObject object = StoreTop.FindCategory(ADMINMENU_TEXTSTORE);
+	if(object == INVALID_TOPMENUOBJECT)
+	{
+		object = StoreTop.AddCategory(ADMINMENU_TEXTSTORE);
+		if(object == INVALID_TOPMENUOBJECT)
+			return;
+	}
+
+	StoreTop.AddItem("sm_store", MainT, object, "sm_store", 0);
+	StoreTop.AddItem("sm_buy", StoreT, object, "sm_buy", 0);
+	StoreTop.AddItem("sm_sell", InventoryT, object, "sm_sell", 0);
+	StoreTop.AddItem("sm_store_admin", AdminMenuT, object, "sm_store_admin", ADMFLAG_ROOT);
+}
+
+public void OnLibraryRemoved(const char[] name)
+{
+	if(StrEqual(name, "adminmenu"))
+		StoreTop = null;
 }
 
 // Game Events
@@ -720,6 +760,10 @@ public int InventoryItemH(Menu panel, MenuAction action, int client, int choice)
 		}
 	}
 	Inventory(client);
+}
+
+public int AdminMenuT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int param, char[] buffer, int maxlength)
+{
 }
 
 void UseItem(int client)
