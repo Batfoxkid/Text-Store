@@ -816,7 +816,7 @@ void AdminMenu(int client)
 			if(!Client[client].Pos[1])
 			{
 				Menu menu = new Menu(AdminMenuH);
-				menu.SetTitle("Store Admin Menu: Cash Manager\nTarget:");
+				menu.SetTitle("Store Admin Menu: Credits\nTarget:");
 				GenerateClientList(menu, client);
 				menu.ExitBackButton = true;
 				menu.ExitButton = true;
@@ -824,60 +824,216 @@ void AdminMenu(int client)
 				return;
 			}
 
-			if(!Client[client].Pos[2])
+			int target = GetClientOfUserId(Client[client].Pos[1]);
+			if(IsValidClient(target))
 			{
-				int target = GetClientOfUserId(Client[client].Pos[1]);
-				if(!IsValidClient(target))
+				if(!Client[client].Pos[2])
 				{
-					PrintToChat(client, "[SM] %t", "Player no longer available");
-					Client[client].ClearPos();
-					AdminMenu(client);
+					Menu menu = new Menu(AdminMenuH);
+					menu.SetTitle("Store Admin Menu: Credits\nTarget: %N\nMode:", target);
+					menu.AddItem("1", "Add");
+					menu.AddItem("2", "Remove");
+					menu.AddItem("3", "Set");
+					menu.ExitBackButton = true;
+					menu.ExitButton = true;
+					menu.Display(client, MENU_TIME_FOREVER);
 					return;
 				}
 
-				Menu menu = new Menu(AdminMenuH);
-				menu.SetTitle("Store Admin Menu: Cash Manager\nTarget: %N\nMode:", target);
-				menu.AddItem("1", "Add");
-				menu.AddItem("2", "Remove");
-				menu.AddItem("3", "Set");
-				menu.ExitBackButton = true;
-				menu.ExitButton = true;
-				menu.Display(client, MENU_TIME_FOREVER);
-			}
-
-			if(!Client[client].Pos[3])
-			{
-				int target = GetClientOfUserId(Client[client].Pos[1]);
-				if(!IsValidClient(target))
+				if(!Client[client].Pos[3])
 				{
-					PrintToChat(client, "[SM] %t", "Player no longer available");
-					Client[client].ClearPos();
-					AdminMenu(client);
+					Menu menu = new Menu(AdminMenuH);
+					menu.SetTitle("Store Admin Menu: Credits\nTarget: %N\nMode: %s\nAmount:", target, Client[client].Pos[2]==3 ? "Set" : Client[client].Pos[2]==2 ? "Remove" : "Add");
+					if(Client[client].Pos[2] == 3)
+						menu.AddItem("0", "0");
+
+					menu.AddItem("100", "100");
+					menu.AddItem("300", "300");
+					menu.AddItem("500", "500");
+					menu.AddItem("1000", "1,000");
+					menu.AddItem("5000", "5,000");
+					menu.AddItem("10000", "10,000");
+					if(Client[client].Pos[2] != 3)
+						menu.AddItem("50000", "50,000");
+
+					menu.ExitBackButton = true;
+					menu.ExitButton = true;
+					menu.Display(client, MENU_TIME_FOREVER);
 					return;
 				}
 
-				Menu menu = new Menu(AdminMenuH);
-				menu.SetTitle("Store Admin Menu: Cash Manager\nTarget: %N\nMode: %s", target, Client[client].Pos[2]==1 ? "Add" : Client[client].Pos[2]==2 ? "Remove" : Client[client].Pos[2]==3 ? "Set" : "ERROR");
-				menu.AddItem("0", "0");
-				menu.AddItem("100", "100");
-				menu.AddItem("300", "300");
-				menu.AddItem("500", "500");
-				menu.AddItem("1000", "1,000");
-				menu.AddItem("5000", "5,000");
-				menu.AddItem("10000", "10,000");
-				menu.ExitBackButton = true;
-				menu.ExitButton = true;
-				menu.Display(client, MENU_TIME_FOREVER);
+				switch(Client[client].Pos[2])
+				{
+					case 1:
+					{
+						Client[target].Cash -= Client[client].Pos[3];
+						CShowActivity2(client, STORE_PREFIX2, "%stoke %s%i%s credits from %s%N", STORE_COLOR, STORE_COLOR2, Client[client].Pos[3], STORE_COLOR, STORE_COLOR2, target);
+					}
+					case 2:
+					{
+						Client[target].Cash = Client[client].Pos[3];
+						CShowActivity2(client, STORE_PREFIX2, "%sset %s%N's%s credits to %s%i", STORE_COLOR, STORE_COLOR2 target, STORE_COLOR, STORE_COLOR2, Client[client].Pos[3]);
+					}
+					default:
+					{
+						Client[target].Cash += Client[client].Pos[3];
+						CShowActivity2(client, STORE_PREFIX2, "%sgave %s%N %i%s credits", STORE_COLOR, STORE_COLOR2, target, Client[client].Pos[3], STORE_COLOR);
+					}
+				}
 			}
+			else
+			{
+				PrintToChat(client, "[SM] %t", "Player no longer available");
+			}
+			Client[client].ClearPos();
 		}
-		default:
+		case 2:
 		{
-			Menu menu = new Menu(AdminMenuH);
-			menu.SetTitle("Store Admin Menu\n ");
+			if(!Client[client].Pos[1])
+			{
+				Menu menu = new Menu(AdminMenuH);
+				menu.SetTitle("Store Admin Menu: Force Save\nTarget:");
+				GenerateClientList(menu, client);
+				menu.ExitBackButton = true;
+				menu.ExitButton = true;
+				menu.Display(client, MENU_TIME_FOREVER);
+				return;
+			}
 
-			
+			int target = GetClientOfUserId(Client[client].Pos[1]);
+			if(IsValidClient(target))
+			{
+				OnClientDisconnect(client);
+				CShowActivity2(client, STORE_PREFIX2, "%sforced %s%N%s to save data", STORE_COLOR, STORE_COLOR2, target, STORE_COLOR);
+			}
+			else
+			{
+				PrintToChat(client, "[SM] %t", "Player no longer available");
+			}
+
+			Client[client].ClearPos();
+		}
+		case 3:
+		{
+			if(!Client[client].Pos[1])
+			{
+				Menu menu = new Menu(AdminMenuH);
+				menu.SetTitle("Store Admin Menu: Force Reload\nTarget:");
+				GenerateClientList(menu, client);
+				menu.ExitBackButton = true;
+				menu.ExitButton = true;
+				menu.Display(client, MENU_TIME_FOREVER);
+				return;
+			}
+
+			int target = GetClientOfUserId(Client[client].Pos[1]);
+			if(IsValidClient(target))
+			{
+				OnClientPostAdminCheck(client);
+				CShowActivity2(client, STORE_PREFIX2, "%sforced %s%N%s to reload data", STORE_COLOR, STORE_COLOR2, target, STORE_COLOR);
+			}
+			else
+			{
+				PrintToChat(client, "[SM] %t", "Player no longer available");
+			}
+
+			Client[client].ClearPos();
+		}
+		case 4:
+		{
+			if(!Client[client].Pos[1])
+			{
+				Menu menu = new Menu(AdminMenuH);
+				menu.SetTitle("Store Admin Menu: Give Item\nTarget:");
+				GenerateClientList(menu, client);
+				menu.ExitBackButton = true;
+				menu.ExitButton = true;
+				menu.Display(client, MENU_TIME_FOREVER);
+				return;
+			}
+
+			int target = GetClientOfUserId(Client[client].Pos[1]);
+			if(IsValidClient(target))
+			{
+				if(!Client[client].Pos[2])
+				{
+					Menu menu = new Menu(AdminMenuH);
+					menu.SetTitle("Store Admin Menu: Credits\nTarget: %N\nMode:", target);
+					menu.AddItem("1", "Give One");
+					menu.AddItem("2", "Remove One");
+					menu.AddItem("3", "Give & Equip");
+					menu.AddItem("4", "Remove All");
+					menu.ExitBackButton = true;
+					menu.ExitButton = true;
+					menu.Display(client, MENU_TIME_FOREVER);
+					return;
+				}
+
+				if(!Client[client].Pos[3])
+				{
+					Menu menu = new Menu(AdminMenuH);
+					menu.SetTitle("Store Admin Menu: Give Item\nTarget: %N\Mode: %s\nItem: %s", target, Client[client].Pos[2]==4 ? "Remove All" : Client[client].Pos[2]==3 ? "Give & Equip" : Client[client].Pos[2]==2 ? "Remove One" : "Give One");
+					for(int i; i<MaxItems; i++)
+					{
+						if(Item[i].Items[0]>0 && Inv[client][i].Count>0)
+							continue;
+
+						static char buffer[MAX_NUM_LENGTH];
+						IntToString(i, buffer, MAX_NUM_LENGTH);
+						menu.AddItem(buffer, Item[i].Name);
+					}
+					menu.ExitBackButton = true;
+					menu.ExitButton = true;
+					menu.Display(client, MENU_TIME_FOREVER);
+					return;
+				}
+
+				switch(Client[client].Pos[2])
+				{
+					case 1:
+					{
+						if(--Inv[client][Client[client].Pos[2]].Count < 1)
+							Inv[client][Client[client].Pos[2]].Equip = false;
+
+						CShowActivity2(client, STORE_PREFIX2, "%removed %s%N's %s", STORE_COLOR, STORE_COLOR2, target, Item[Client[client].Pos[2]].Name);
+					}
+					case 2:
+					{
+						Inv[client][Client[client].Pos[2]].Count++;
+						Inv[client][Client[client].Pos[2]].Equip = true;
+						CShowActivity2(client, STORE_PREFIX2, "%sgave and equipped %s%N %s", STORE_COLOR, STORE_COLOR2, target, Item[Client[client].Pos[2]].Name);
+					}
+					case 3:
+					{
+						Inv[client][Client[client].Pos[2]].Count = 0;
+						Inv[client][Client[client].Pos[2]].Equip = false;
+						CShowActivity2(client, STORE_PREFIX2, "%removed all of %s%N's %s", STORE_COLOR, STORE_COLOR2, target, Item[Client[client].Pos[2]].Name);
+					}
+					default:
+					{
+						Inv[client][Client[client].Pos[2]].Count++;
+						CShowActivity2(client, STORE_PREFIX2, "%sgave %s%N %s", STORE_COLOR, STORE_COLOR2, target, Item[Client[client].Pos[2]].Name);
+					}
+				}
+				Inv[target][Client[client].Pos[2]]++;
+			}
+			else
+			{
+				PrintToChat(client, "[SM] %t", "Player no longer available");
+			}
+			Client[client].ClearPos();
 		}
 	}
+
+	Menu menu = new Menu(AdminMenuH);
+	menu.SetTitle("Store Admin Menu\n ");
+	menu.AddItem("1", "Credits");
+	menu.AddItem("2", "Force Save");
+	menu.AddItem("3", "Force Reload");
+	menu.AddItem("4", "Give Item");
+	menu.ExitBackButton = true;
+	menu.ExitButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
 }
 
 public void AdminMenuT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
