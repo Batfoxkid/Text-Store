@@ -1,11 +1,10 @@
 #pragma semicolon 1
 
 #include <sourcemod>
-#if !defined REQUIRE_PLUGIN
+#undef REQUIRE_PLUGIN
 #include <adminmenu>
-#endif
+#define REQUIRE_PLUGIN
 #include <morecolors>
-#include <sdkhooks>
 #include <textstore>
 
 #pragma newdecls required
