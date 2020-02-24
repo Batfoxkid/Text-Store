@@ -49,6 +49,14 @@ int MaxItems;
 GlobalForward OnSellItem; 
 TopMenu StoreTop;
 
+enum StoreTypeEnum
+{
+	Type_Main = 0,
+	Type_Store,
+	Type_Inven,
+	Type_Admin
+}
+
 enum struct InvEnum
 {
 	bool Equip;
@@ -76,7 +84,8 @@ enum struct ClientEnum
 {
 	int Cash;
 	int Pos[MAXCATEGORIES];
-	bool Store;
+	StoreTypeEnum StoreType;
+	bool CanBackOut;
 
 	void Setup(int client)
 	{
@@ -269,7 +278,7 @@ public void OnConfigsExecuted()
 
 	for(int i=1; i<=MaxClients; i++)
 	{
-		if(IsValidClient(i) && !IsFakeClient(i))
+		if(IsValidClient(i))
 			Client[i].Setup(i);
 	}
 }
@@ -342,7 +351,7 @@ void ReadCategory(int parent)
 			Item[MaxItems].Cost = StoreKv.GetNum("cost");
 			Item[MaxItems].Hidden = view_as<bool>(StoreKv.GetNum("hidden", GetRandomInt(0, 5) ? 0 : 1));
 			Item[MaxItems].Stack = view_as<bool>(StoreKv.GetNum("stack", 1));
-			Item[MaxItems].Trade = view_as<bool>(StoreKv.GetNum("trade"));
+			Item[MaxItems].Trade = view_as<bool>(StoreKv.GetNum("trade", 1));
 			Item[MaxItems].Slot = StoreKv.GetNum("slot");
 			StoreKv.GetString("plugin", Item[MaxItems].Plugin, MAX_PLUGIN_LENGTH);
 			StoreKv.GetString("desc", Item[MaxItems].Desc, MAX_DESC_LENGTH, "No Description");
@@ -363,7 +372,7 @@ public Action CommandMain(int client, int args)
 		return Plugin_Handled;
 	}
 
-	Client[client].ClearPos();
+	Client[client].StoreType = Type_Main;
 	Main(client);
 	return Plugin_Handled;
 }
@@ -376,10 +385,12 @@ public Action CommandStore(int client, int args)
 		return Plugin_Handled;
 	}
 
-	if(!Client[client].Store)
+	if(Client[client].StoreType != Type_Store)
+	{
 		Client[client].ClearPos();
+		Client[client].StoreType = Type_Store;
+	}
 
-	Client[client].Store = true;
 	Store(client);
 	return Plugin_Handled;
 }
@@ -392,10 +403,12 @@ public Action CommandInven(int client, int args)
 		return Plugin_Handled;
 	}
 
-	if(Client[client].Store)
+	if(Client[client].StoreType != Type_Inven)
+	{
 		Client[client].ClearPos();
+		Client[client].StoreType = Type_Inven;
+	}
 
-	Client[client].Store = false;
 	Inventory(client);
 	return Plugin_Handled;
 }
@@ -406,6 +419,12 @@ public Action CommandAdmin(int client, int args)
 	{
 		ReplyToCommand(client, "[SM] %t", "Command is in-game only");
 		return Plugin_Handled;
+	}
+
+	if(Client[client].StoreType != Type_Admin)
+	{
+		Client[client].ClearPos();
+		Client[client].StoreType = Type_Admin;
 	}
 
 	AdminMenu(client);
@@ -441,15 +460,16 @@ public int MainH(Menu menu, MenuAction action, int client, int choice)
 		}
 		case MenuAction_Select:
 		{
-			if(choice)
+			switch(choice)
 			{
-				Client[client].Store = false;
-				Inventory(client);
-			}
-			else
-			{
-				Client[client].Store = true;
-				Store(client);
+				case 0:
+					CommandStore(client, 0);
+
+				case 1:
+					CommandInven(client, 0);
+
+				case 2:
+					CommandAdmin(client, 0);
 			}
 		}
 	}
@@ -789,38 +809,74 @@ void AdminMenu(int client)
 		return;
 	}
 
-	Menu menu = new Menu(AdminMenuH);
-	if(item)
+	switch(Client[client].Pos[0])
 	{
-		menu.SetTitle("Admin Menu");
-	}
-	else
-	{
-		menu.SetTitle("Inventory\n \nCredits: %i\n ", Client[client].Cash);
-	}
-
-		bool items;
-		for(int i; i<MAXONCE; i++)
+		case 1:
 		{
-			if(ITEM < 1)
-				break;
+			if(!Client[client].Pos[1])
+			{
+				Menu menu = new Menu(AdminMenuH);
+				menu.SetTitle("Store Admin Menu: Cash Manager\nTarget:");
+				GenerateClientList(menu, client);
+				menu.ExitBackButton = true;
+				menu.ExitButton = true;
+				menu.Display(client, MENU_TIME_FOREVER);
+				return;
+			}
 
-			if(Item[ITEM].Items[0]<1 && Inv[client][ITEM].Count<1)
-				continue;
+			if(!Client[client].Pos[2])
+			{
+				int target = GetClientOfUserId(Client[client].Pos[1]);
+				if(!IsValidClient(target))
+				{
+					PrintToChat(client, "[SM] %t", "Player no longer available");
+					Client[client].ClearPos();
+					AdminMenu(client);
+					return;
+				}
 
-			items = true;
-			static char buffer[MAX_NUM_LENGTH];
-			IntToString(ITEM, buffer, MAX_NUM_LENGTH);
-			menu.AddItem(buffer, Item[ITEM].Name);
+				Menu menu = new Menu(AdminMenuH);
+				menu.SetTitle("Store Admin Menu: Cash Manager\nTarget: %N\nMode:", target);
+				menu.AddItem("1", "Add");
+				menu.AddItem("2", "Remove");
+				menu.AddItem("3", "Set");
+				menu.ExitBackButton = true;
+				menu.ExitButton = true;
+				menu.Display(client, MENU_TIME_FOREVER);
+			}
+
+			if(!Client[client].Pos[3])
+			{
+				int target = GetClientOfUserId(Client[client].Pos[1]);
+				if(!IsValidClient(target))
+				{
+					PrintToChat(client, "[SM] %t", "Player no longer available");
+					Client[client].ClearPos();
+					AdminMenu(client);
+					return;
+				}
+
+				Menu menu = new Menu(AdminMenuH);
+				menu.SetTitle("Store Admin Menu: Cash Manager\nTarget: %N\nMode: %s", target, Client[client].Pos[2]==1 ? "Add" : Client[client].Pos[2]==2 ? "Remove" : Client[client].Pos[2]==3 ? "Set" : "ERROR");
+				menu.AddItem("0", "0");
+				menu.AddItem("100", "100");
+				menu.AddItem("300", "300");
+				menu.AddItem("500", "500");
+				menu.AddItem("1000", "1,000");
+				menu.AddItem("5000", "5,000");
+				menu.AddItem("10000", "10,000");
+				menu.ExitBackButton = true;
+				menu.ExitButton = true;
+				menu.Display(client, MENU_TIME_FOREVER);
+			}
 		}
+		default:
+		{
+			Menu menu = new Menu(AdminMenuH);
+			menu.SetTitle("Store Admin Menu\n ");
 
-		if(!items)
-			menu.AddItem("0", "No Items", ITEMDRAW_DISABLED);
-
-		menu.ExitBackButton = true;
-		menu.ExitButton = true;
-		menu.Display(client, MENU_TIME_FOREVER);
-		return;
+			
+		}
 	}
 }
 
@@ -995,15 +1051,36 @@ void SellItem(int client, int item)
 
 // Stocks
 
-stock bool IsValidClient(int client, bool replaycheck=true)
+stock void GenerateClientList(Menu menu, int client=0)
 {
-	if(client<=0 || client>MaxClients)
+	for(int target=1; target<=MaxClients; target++)
+	{
+		if(!IsValidClient(target))
+			continue;
+
+		static char name[64];
+		GetClientName(target, name, sizeof(name));
+		if(client && CanUserTarget(client, target))
+		{
+			menu.AddItem("0", name, ITEMDRAW_DISABLED);
+			continue;
+		}
+
+		static char userid[32];
+		IntToString(GetClientUserId(target), userid, sizeof(userid));
+		menu.AddItem(userid, name);
+	}
+}
+
+stock bool IsValidClient(int client)
+{
+	if(client<1 || client>MaxClients)
 		return false;
 
 	if(!IsClientInGame(client))
 		return false;
 
-	if(replaycheck && (IsClientSourceTV(client) || IsClientReplay(client)))
+	if(IsFakeClient(client) || IsClientSourceTV(client) || IsClientReplay(client))
 		return false;
 
 	return true;
