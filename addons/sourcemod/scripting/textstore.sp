@@ -85,7 +85,7 @@ enum struct ClientEnum
 	int Cash;
 	int Pos[MAXCATEGORIES];
 	StoreTypeEnum StoreType;
-	bool CanBackOut;
+	bool BackOutAdmin;
 
 	void Setup(int client)
 	{
@@ -236,8 +236,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnPluginStart()
 {
-	RegConsoleCmd("sm_store", CommandMain, "Browse items to buy");
-	RegConsoleCmd("sm_shop", CommandMain, "Browse items to buy");
+	RegConsoleCmd("sm_store", CommandMain, "View the main menu");
+	RegConsoleCmd("sm_shop", CommandMain, "View the main menu");
 
 	RegConsoleCmd("sm_buy", CommandStore, "Browse items to buy");
 
@@ -298,7 +298,6 @@ public void OnAdminMenuReady(Handle topmenu)
 			return;
 	}
 
-	StoreTop.AddItem("sm_store", MainT, object, "sm_store", 0);
 	StoreTop.AddItem("sm_buy", StoreT, object, "sm_buy", 0);
 	StoreTop.AddItem("sm_sell", InventoryT, object, "sm_sell", 0);
 	StoreTop.AddItem("sm_store_admin", AdminMenuT, object, "sm_store_admin", ADMFLAG_ROOT);
@@ -385,6 +384,7 @@ public Action CommandStore(int client, int args)
 		return Plugin_Handled;
 	}
 
+	Client[client].BackOutAdmin = (args==-1);
 	if(Client[client].StoreType != Type_Store)
 	{
 		Client[client].ClearPos();
@@ -403,6 +403,7 @@ public Action CommandInven(int client, int args)
 		return Plugin_Handled;
 	}
 
+	Client[client].BackOutAdmin = (args==-1);
 	if(Client[client].StoreType != Type_Inven)
 	{
 		Client[client].ClearPos();
@@ -421,6 +422,7 @@ public Action CommandAdmin(int client, int args)
 		return Plugin_Handled;
 	}
 
+	Client[client].BackOutAdmin = (args==-1);
 	if(Client[client].StoreType != Type_Admin)
 	{
 		Client[client].ClearPos();
@@ -446,6 +448,9 @@ void Main(int client)
 
 	menu.AddItem("", "Store");
 	menu.AddItem("", "Inventory");
+	if(CheckCommandAccess(client, "sm_store_admin", ADMFLAG_ROOT))
+		menu.AddItem("", "Admin Menu");
+
 	menu.ExitButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
 }
@@ -574,6 +579,10 @@ public int StoreH(Menu menu, MenuAction action, int client, int choice)
 			{
 				Store(client);
 			}
+			else if(Client[client].BackOutAdmin && StoreTop)
+			{
+				StoreTop.Display(client, TopMenuPosition_LastCategory);
+			}
 			else
 			{
 				Main(client);
@@ -628,6 +637,18 @@ public int StoreItemH(Menu panel, MenuAction action, int client, int choice)
 		}
 	}
 	Store(client);
+}
+
+public void StoreT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
+{
+	switch(action)
+	{
+		case TopMenuAction_DisplayOption:
+			strcopy(buffer, maxlength, "Store Menu");
+
+		case TopMenuAction_SelectOption:
+			CommandStore(client, -1);
+	}
 }
 
 void Inventory(int client)
@@ -735,6 +756,10 @@ public int InventoryH(Menu menu, MenuAction action, int client, int choice)
 			{
 				Inventory(client);
 			}
+			else if(Client[client].BackOutAdmin && StoreTop)
+			{
+				StoreTop.Display(client, TopMenuPosition_LastCategory);
+			}
 			else
 			{
 				Main(client);
@@ -793,6 +818,18 @@ public int InventoryItemH(Menu panel, MenuAction action, int client, int choice)
 		}
 	}
 	Inventory(client);
+}
+
+public void InventoryT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
+{
+	switch(action)
+	{
+		case TopMenuAction_DisplayOption:
+			strcopy(buffer, maxlength, "Inventory Menu");
+
+		case TopMenuAction_SelectOption:
+			CommandInven(client, -1);
+	}
 }
 
 void AdminMenu(int client)
@@ -1036,6 +1073,45 @@ void AdminMenu(int client)
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
+public int AdminMenuH(Menu menu, MenuAction action, int client, int choice)
+{
+	switch(action)
+	{
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+		case MenuAction_Cancel:
+		{
+			if(choice != MenuCancel_ExitBack)
+				return;
+
+			if(Client[client].RemovePos())
+			{
+				AdminMenu(client);
+			}
+			else if(Client[client].BackOutAdmin && StoreTop)
+			{
+				StoreTop.Display(client, TopMenuPosition_LastCategory);
+			}
+			else
+			{
+				Main(client);
+			}
+		}
+		case MenuAction_Select:
+		{
+			static char buffer[32];
+			menu.GetItem(choice, buffer, 32);
+			int item = StringToInt(buffer);
+			if(item)
+				Client[client].AddPos(item);
+
+			Inventory(client);
+		}
+	}
+}
+
 public void AdminMenuT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
 {
 	switch(action)
@@ -1044,7 +1120,7 @@ public void AdminMenuT(TopMenu topmenu, TopMenuAction action, TopMenuObject topo
 			strcopy(buffer, maxlength, "Admin Menu");
 
 		case TopMenuAction_SelectOption:
-			AdminMenu(client);
+			CommandAdmin(client, -1);
 	}
 }
 
