@@ -289,17 +289,17 @@ public void OnAdminMenuReady(Handle topmenu)
 		return;
 
 	StoreTop = menu;
-	TopMenuObject object = StoreTop.FindCategory(ADMINMENU_TEXTSTORE);
-	if(object == INVALID_TOPMENUOBJECT)
+	TopMenuObject topobject = StoreTop.FindCategory(ADMINMENU_TEXTSTORE);
+	if(topobject == INVALID_TOPMENUOBJECT)
 	{
-		object = StoreTop.AddCategory(ADMINMENU_TEXTSTORE);
-		if(object == INVALID_TOPMENUOBJECT)
+		topobject = StoreTop.AddCategory(ADMINMENU_TEXTSTORE);
+		if(topobject == INVALID_TOPMENUOBJECT)
 			return;
 	}
 
-	StoreTop.AddItem("sm_buy", StoreT, object, "sm_buy", 0);
-	StoreTop.AddItem("sm_sell", InventoryT, object, "sm_sell", 0);
-	StoreTop.AddItem("sm_store_admin", AdminMenuT, object, "sm_store_admin", ADMFLAG_ROOT);
+	StoreTop.AddItem("sm_buy", StoreT, topobject, "sm_buy", 0);
+	StoreTop.AddItem("sm_sell", InventoryT, topobject, "sm_sell", 0);
+	StoreTop.AddItem("sm_store_admin", AdminMenuT, topobject, "sm_store_admin", ADMFLAG_ROOT);
 }
 
 public void OnLibraryRemoved(const char[] name)
