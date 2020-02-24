@@ -240,6 +240,7 @@ public void OnPluginStart()
 	RegAdminCmd("sm_store_admin", CommandAdmin, ADMFLAG_ROOT, "View the admin menu");
 
 	LoadTranslations("common.phrases");
+	LoadTranslations("core.phrases");
 
 	TopMenu topmenu;
 	if(LibraryExists("adminmenu") && ((topmenu=GetAdminTopMenu())!=null))
@@ -396,6 +397,18 @@ public Action CommandInven(int client, int args)
 
 	Client[client].Store = false;
 	Inventory(client);
+	return Plugin_Handled;
+}
+
+public Action CommandAdmin(int client, int args)
+{
+	if(!client)
+	{
+		ReplyToCommand(client, "[SM] %t", "Command is in-game only");
+		return Plugin_Handled;
+	}
+
+	AdminMenu(client);
 	return Plugin_Handled;
 }
 
@@ -766,7 +779,7 @@ void AdminMenu(int client)
 {
 	if(!CheckCommandAccess(client, "sm_store_admin", ADMFLAG_ROOT))
 	{
-		PrintToChat(client, "[SM] %t", "Vote in Progress");
+		PrintToChat(client, "[SM] %t", "No Access");
 		return;
 	}
 
@@ -776,18 +789,15 @@ void AdminMenu(int client)
 		return;
 	}
 
-	int item = Client[client].GetPos();
-	if(!item || Item[item].Items[0]>0)
+	Menu menu = new Menu(AdminMenuH);
+	if(item)
 	{
-		Menu menu = new Menu(InventoryH);
-		if(item)
-		{
-			menu.SetTitle("Inventory: %s\n ", Item[item].Name);
-		}
-		else
-		{
-			menu.SetTitle("Inventory\n \nCredits: %i\n ", Client[client].Cash);
-		}
+		menu.SetTitle("Admin Menu");
+	}
+	else
+	{
+		menu.SetTitle("Inventory\n \nCredits: %i\n ", Client[client].Cash);
+	}
 
 		bool items;
 		for(int i; i<MAXONCE; i++)
@@ -812,48 +822,6 @@ void AdminMenu(int client)
 		menu.Display(client, MENU_TIME_FOREVER);
 		return;
 	}
-
-	Panel panel = new Panel();
-	char buffer[MAX_ITEM_LENGTH];
-	FormatEx(buffer, MAX_ITEM_LENGTH, "%s\n ", Item[item].Name);
-	panel.SetTitle(buffer);
-	panel.DrawText(Item[item].Desc);
-
-	if(Item[item].Stack)
-	{
-		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou have %i credits\nYou own %i\n ", Client[client].Cash, Inv[client][item].Count);
-	}
-	else
-	{
-		FormatEx(buffer, MAX_ITEM_LENGTH, " \nYou have %i credits\nYou %sown this item\n ", Client[client].Cash, Inv[client][item].Count<1 ? "don't " : "");
-	}
-	panel.DrawText(buffer);
-
-	panel.DrawItem(Inv[client][item].Equip ? "Disactivate Item" : "Activate Item");
-
-	FormatEx(buffer, MAX_ITEM_LENGTH, "Buy (%i Credits)", Item[item].Cost);
-	if((!Item[item].Stack && Inv[client][item].Count>0) || Client[client].Cash<Item[item].Cost)
-	{
-		panel.DrawItem(buffer, ITEMDRAW_DISABLED);
-	}
-	else
-	{
-		panel.DrawItem(buffer);
-	}
-
-	if(Item[item].Sell > 0)
-	{
-		FormatEx(buffer, MAX_ITEM_LENGTH, "Sell (%i Credits)", Item[item].Sell);
-		panel.DrawItem(buffer, Inv[client][item].Count>0 ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
-	}
-
-	panel.DrawText(" ");
-	panel.CurrentKey = 8;
-	panel.DrawItem("Back");
-	panel.DrawText(" ");
-	panel.CurrentKey = 10;
-	panel.DrawItem("Exit");
-	panel.Send(client, InventoryItemH, MENU_TIME_FOREVER);
 }
 
 public void AdminMenuT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
