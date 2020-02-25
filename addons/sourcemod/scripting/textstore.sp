@@ -282,6 +282,13 @@ public void OnConfigsExecuted()
 	}
 }
 
+public void OnAdminMenuCreated(Handle topmenu)
+{
+	TopMenu menu = TopMenu.FromHandle(topmenu);
+	if(menu.FindCategory(ADMINMENU_TEXTSTORE) == INVALID_TOPMENUOBJECT)
+		menu.AddCategory(ADMINMENU_TEXTSTORE, TopMenuCategory);
+}
+
 public void OnAdminMenuReady(Handle topmenu)
 {
 	TopMenu menu = TopMenu.FromHandle(topmenu);
@@ -292,7 +299,7 @@ public void OnAdminMenuReady(Handle topmenu)
 	TopMenuObject topobject = StoreTop.FindCategory(ADMINMENU_TEXTSTORE);
 	if(topobject == INVALID_TOPMENUOBJECT)
 	{
-		topobject = StoreTop.AddCategory(ADMINMENU_TEXTSTORE);
+		topobject = StoreTop.AddCategory(ADMINMENU_TEXTSTORE, TopMenuCategory);
 		if(topobject == INVALID_TOPMENUOBJECT)
 			return;
 	}
@@ -430,6 +437,56 @@ public Action CommandAdmin(int client, int args)
 
 	AdminMenu(client);
 	return Plugin_Handled;
+}
+
+// TopMenu Events
+
+public void TopMenuCategory(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
+{
+	switch(action)
+	{
+		case TopMenuAction_DisplayTitle:
+			strcopy(buffer, maxlength, "Text Store:");
+
+		case TopMenuAction_DisplayOption:
+			strcopy(buffer, maxlength, "Text Store");
+	}
+}
+
+public void StoreT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
+{
+	switch(action)
+	{
+		case TopMenuAction_DisplayOption:
+			strcopy(buffer, maxlength, "Store Menu");
+
+		case TopMenuAction_SelectOption:
+			CommandStore(client, -1);
+	}
+}
+
+public void InventoryT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
+{
+	switch(action)
+	{
+		case TopMenuAction_DisplayOption:
+			strcopy(buffer, maxlength, "Inventory Menu");
+
+		case TopMenuAction_SelectOption:
+			CommandInven(client, -1);
+	}
+}
+
+public void AdminMenuT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
+{
+	switch(action)
+	{
+		case TopMenuAction_DisplayOption:
+			strcopy(buffer, maxlength, "Admin Menu");
+
+		case TopMenuAction_SelectOption:
+			CommandAdmin(client, -1);
+	}
 }
 
 // Menu Events
@@ -638,18 +695,6 @@ public int StoreItemH(Menu panel, MenuAction action, int client, int choice)
 	Store(client);
 }
 
-public void StoreT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
-{
-	switch(action)
-	{
-		case TopMenuAction_DisplayOption:
-			strcopy(buffer, maxlength, "Store Menu");
-
-		case TopMenuAction_SelectOption:
-			CommandStore(client, -1);
-	}
-}
-
 void Inventory(int client)
 {
 	if(IsVoteInProgress())
@@ -819,18 +864,6 @@ public int InventoryItemH(Menu panel, MenuAction action, int client, int choice)
 	Inventory(client);
 }
 
-public void InventoryT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
-{
-	switch(action)
-	{
-		case TopMenuAction_DisplayOption:
-			strcopy(buffer, maxlength, "Inventory Menu");
-
-		case TopMenuAction_SelectOption:
-			CommandInven(client, -1);
-	}
-}
-
 void AdminMenu(int client)
 {
 	if(!CheckCommandAccess(client, "sm_store_admin", ADMFLAG_ROOT))
@@ -908,7 +941,7 @@ void AdminMenu(int client)
 					case 2:
 					{
 						Client[target].Cash = Client[client].Pos[3];
-						CShowActivity2(client, STORE_PREFIX2, "%sset %s%N's%s credits to %s%i", STORE_COLOR, STORE_COLOR2 target, STORE_COLOR, STORE_COLOR2, Client[client].Pos[3]);
+						CShowActivity2(client, STORE_PREFIX2, "%sset %s%N's%s credits to %s%i", STORE_COLOR, STORE_COLOR2, target, STORE_COLOR, STORE_COLOR2, Client[client].Pos[3]);
 					}
 					default:
 					{
@@ -1008,7 +1041,7 @@ void AdminMenu(int client)
 				if(!Client[client].Pos[3])
 				{
 					Menu menu = new Menu(AdminMenuH);
-					menu.SetTitle("Store Admin Menu: Give Item\nTarget: %N\Mode: %s\nItem: %s", target, Client[client].Pos[2]==4 ? "Remove All" : Client[client].Pos[2]==3 ? "Give & Equip" : Client[client].Pos[2]==2 ? "Remove One" : "Give One");
+					menu.SetTitle("Store Admin Menu: Give Item\nTarget: %N\nMode: %s\nItem: %s", target, Client[client].Pos[2]==4 ? "Remove All" : Client[client].Pos[2]==3 ? "Give & Equip" : Client[client].Pos[2]==2 ? "Remove One" : "Give One");
 					for(int i; i<MaxItems; i++)
 					{
 						if(Item[i].Items[0]>0 && Inv[client][i].Count>0)
@@ -1051,7 +1084,6 @@ void AdminMenu(int client)
 						CShowActivity2(client, STORE_PREFIX2, "%sgave %s%N %s", STORE_COLOR, STORE_COLOR2, target, Item[Client[client].Pos[2]].Name);
 					}
 				}
-				Inv[target][Client[client].Pos[2]]++;
 			}
 			else
 			{
@@ -1108,18 +1140,6 @@ public int AdminMenuH(Menu menu, MenuAction action, int client, int choice)
 
 			Inventory(client);
 		}
-	}
-}
-
-public void AdminMenuT(TopMenu topmenu, TopMenuAction action, TopMenuObject topobject, int client, char[] buffer, int maxlength)
-{
-	switch(action)
-	{
-		case TopMenuAction_DisplayOption:
-			strcopy(buffer, maxlength, "Admin Menu");
-
-		case TopMenuAction_SelectOption:
-			CommandAdmin(client, -1);
 	}
 }
 
