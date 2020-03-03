@@ -3,7 +3,7 @@
 
 static char ClientTag[MAXPLAYERS+1][MAXLENGTH_NAME];
 
-ItemResult Command_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
+ItemResult Chat_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
 {
 	static char buffer[MAXLENGTH_NAME];
 	if(GetFeatureStatus(FeatureType_Native, "ChatProcessor_AddClientTag") != FeatureStatus_Available)
