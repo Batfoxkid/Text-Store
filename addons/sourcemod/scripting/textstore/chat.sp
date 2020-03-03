@@ -24,7 +24,7 @@ ItemResult Chat_Use(int client, bool equipped, KeyValues item, int index, const 
 	item.GetString("nametag", buffer, sizeof(buffer), "X");
 	if(!StrEqual(buffer, "X", false))
 	{
-		used = !ClientChat[client].Tag[0];
+		used = !ClientTag[client][0];
 		if(!used)
 		{
 			used = ChatProcessor_RemoveClientTag(client, ClientTag[client]);
