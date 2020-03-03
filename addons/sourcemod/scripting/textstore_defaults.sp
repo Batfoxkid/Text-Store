@@ -12,11 +12,12 @@
 #undef REQUIRE_PLUGIN
 #tryinclude <tVip>
 #tryinclude <freak_fortress_2>
+#tryinclude <chat-processor>
 #define REQUIRE_PLUGIN
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.1.1"
+#define PLUGIN_VERSION "0.2.0"
 
 #define FAR_FUTURE		100000000.0
 #define MAX_SOUND_LENGTH	80
@@ -41,7 +42,6 @@
 #define VOID_ARG		-1
 
 EngineVersion GameType = Engine_Unknown;
-float Delay[MAXPLAYERS+1];
 
 // SourceMod Events
 
@@ -107,6 +107,7 @@ stock bool IsValidClient(int client, bool replaycheck=true)
 
 // Modules
 
+#tryinclude "textstore/chat.sp"
 #tryinclude "textstore/command.sp"
 #tryinclude "textstore/trails.sp"
 #tryinclude "textstore/tvip.sp"
@@ -117,16 +118,13 @@ stock bool IsValidClient(int client, bool replaycheck=true)
 
 public ItemResult TextStore_Item(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
 {
-	float engineTime = GetEngineTime();
-	if(Delay[client] > engineTime)
-	{
-		SPrintToChat(client, "Please wait...");
-		return Item_None;
-	}
-	Delay[client] = engineTime+2.5;
-
 	static char buffer[MAX_MATERIAL_LENGTH];
 	item.GetString("type", buffer, MAX_MATERIAL_LENGTH);
+
+	#if defined ITEM_CHAT
+	if(StrEqual(buffer, ITEM_CHAT))
+		return Chat_Use(client, equipped, item, index, name, count);
+	#endif
 
 	#if defined ITEM_COMMAND
 	if(StrEqual(buffer, ITEM_COMMAND))
