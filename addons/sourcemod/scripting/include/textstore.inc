@@ -4,6 +4,7 @@
 #define _textstore_included
 
 #define STORE_PREFIX	"{green}[Store]{snow} "
+#define STORE_PREFIX2	"{green}[Store] "
 #define STORE_COLOR	"{snow}"
 #define STORE_COLOR2	"{green}"
 
