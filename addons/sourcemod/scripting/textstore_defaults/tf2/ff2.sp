@@ -1,9 +1,14 @@
-#if defined _FF2_included
-#define ITEM_TF2_FF2	"freak_fortress_2"
-char FF2Selection[MAXPLAYERS+1];
-int FF2StoreIndex[MAXPLAYERS+1];
+#if !defined _FF2_included
+	#endinput
+#endif
 
-public ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
+#define ITEM_TF2_FF2	"freak_fortress_2"
+
+static ArrayList FF2Changes[36];
+static char FF2Selection[36][64];
+static int FF2StoreIndex[36];
+
+stock ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
 {
 	if(GameType != Engine_TF2)
 	{
@@ -97,11 +102,9 @@ public ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, 
 			if(StrEqual(buffer, boss, false))
 			{
 				kv.GetString("name", boss, sizeof(boss));
-				if(!FF2_SelectBoss(client, boss, true))
-				{
-					strcopy(FF2Selection[client], sizeof(FF2Selection[]), boss);
-					FF2StoreIndex[client] = index;
-				}
+				FF2_SelectBoss(client, boss, true);
+				strcopy(FF2Selection[client], sizeof(FF2Selection[]), boss);
+				FF2StoreIndex[client] = index;
 				FF2_GetName(i, boss, sizeof(boss), 1, client);
 				SPrintToChat(client, "%s%s%s is now selected!", STORE_COLOR2, boss, STORE_COLOR);
 				used = true;
@@ -112,13 +115,98 @@ public ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, 
 		if(!used)
 			SPrintToChat(client, "%s%s%s is not available right now!", STORE_COLOR2, buffer, STORE_COLOR);
 
-		return Item_None;
+		used = false;
 	}
 
-	return used ? Item_Used : Item_None;
+	if(used)
+		return Item_Used;
+
+	// Change bosses
+	item.GetString("change", buffer, sizeof(buffer));
+	if(buffer[0])
+	{
+		if(FF2Changes[client] == INVALID_HANDLE)
+			FF2Changes[client] = new ArrayList();
+
+		int length = FF2Changes[client].Length;
+		for(int i; i<length; i++)
+		{
+			DataPack pack = FF2Changes[client].Get(i);
+			pack.Reset();
+			int id = pack.ReadCell();
+			pack.ReadString(boss, sizeof(boss));
+			if(StrEqual(buffer, boss))
+			{
+				TextStore_SetInv(client, id, _, 0);
+				delete pack;
+				FF2Changes[client].Erase(i);
+				break;
+			}
+		}
+
+		if(equipped)
+			return Item_Off;
+
+		DataPack pack = new DataPack();
+		pack.WriteCell(index);
+		pack.WriteString(buffer);
+		item.GetString("boss", boss, sizeof(boss));
+		pack.WriteString(boss);
+		FF2Changes[client].Push(pack);
+		return Item_On;
+	}
+	return Item_None;
 }
 
-public void FF2_OnArenaRoundStart()
+public Action FF2_OnSpecialSelected(int boss, int &special, char[] name, bool preset)
+{
+	int client = GetClientOfUserId(FF2_GetBossUserId(boss));
+	if(FF2Changes[client] != INVALID_HANDLE)
+	{
+		int length = FF2Changes[client].Length;
+		for(int i; i<length; i++)
+		{
+			DataPack pack = FF2Changes[client].Get(i);
+			pack.Reset();
+			int item = pack.ReadCell();
+			if(!TextStore_GetInv(client, item, item) || item<1)
+			{
+				delete pack;
+				FF2Changes[client].Erase(i);
+				i--;
+				length--;
+				continue;
+			}
+
+			static char buffer[64];
+			pack.ReadString(buffer, sizeof(buffer));
+			if(!StrEqual(buffer, name, false))
+				continue;
+
+			pack.ReadString(name, 64);
+			if(StrEqual(buffer, FF2Selection[client], false))
+			{
+				FF2_SelectBoss(client, "", false);
+
+				int items;
+				TextStore_GetInv(client, FF2StoreIndex[client], items);
+				if(items > 0)
+				{
+					TextStore_SetInv(client, FF2StoreIndex[client], items-1, items==1 ? 0 : -1);
+				}
+				else
+				{
+					LogError("Exploit detected with Select FF2 Item! Client: %N Index: %i Count: %i Boss: %s", client, FF2StoreIndex[client], items, FF2Selection[client]);
+				}
+			}
+			FF2StoreIndex[client] = 0;
+			return Plugin_Changed;
+		}
+	}
+	return Plugin_Continue;
+}
+
+void FF2_OnArenaRoundStart()
 {
 	if(GetFeatureStatus(FeatureType_Native, "FF2_SelectBoss") != FeatureStatus_Available)
 		return;
@@ -134,25 +222,23 @@ public void FF2_OnArenaRoundStart()
 
 		static char buffer[64];
 		FF2_GetBossSpecial(boss, buffer, sizeof(buffer), 0);
-		if(!StrEqual(buffer, FF2Selection[client]))
+		if(StrEqual(buffer, FF2Selection[client]))
 		{
-			FF2StoreIndex[client] = 0;
-			continue;
-		}
+			FF2_SelectBoss(client, "", false);
 
-		FF2_SelectBoss(client, "", false);
-
-		int items;
-		TextStore_GetInv(client, FF2StoreIndex[client], items);
-		if(items < 1)
-		{
-			LogError("Exploit detected with Select FF2 Item! Client: %N Index: %i Count: %i Boss: %s", client, FF2StoreIndex[client], items, FF2Selection[client]);
-			FF2StoreIndex[client] = 0;
-			return;
+			int items;
+			TextStore_GetInv(client, FF2StoreIndex[client], items);
+			if(items > 0)
+			{
+				TextStore_SetInv(client, FF2StoreIndex[client], items-1, items==1 ? 0 : -1);
+			}
+			else
+			{
+				LogError("Exploit detected with Select FF2 Item! Client: %N Index: %i Count: %i Boss: %s", client, FF2StoreIndex[client], items, FF2Selection[client]);
+			}
 		}
 
 		FF2StoreIndex[client] = 0;
-		TextStore_SetInv(client, FF2StoreIndex[client], items-1, items==1 ? 0 : -1);
 	}
 }
 
@@ -165,7 +251,7 @@ public Action TextStore_OnSellItem(int client, int item, int cash, int &count, i
 	return Plugin_Handled;
 }
 
-stock void FF2_GetName(int boss, char[] buffer, int length, int mode, int client)
+static void FF2_GetName(int boss, char[] buffer, int length, int mode, int client)
 {
 	if(GetFeatureStatus(FeatureType_Native, "FF2_GetBossName") == FeatureStatus_Available)
 	{
@@ -176,4 +262,3 @@ stock void FF2_GetName(int boss, char[] buffer, int length, int mode, int client
 		FF2_GetBossSpecial(boss, buffer, length, mode);
 	}
 }
-#endif

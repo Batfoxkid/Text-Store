@@ -1,6 +1,6 @@
 #define ITEM_COMMAND	"command"
 
-public ItemResult Command_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
+stock ItemResult Command_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
 {
 	static char buffer[512], buffer2[128];
 	item.GetString("command", buffer, sizeof(buffer));

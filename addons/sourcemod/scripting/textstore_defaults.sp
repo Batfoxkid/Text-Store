@@ -17,7 +17,9 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.2.0"
+#define PLUGIN_VERSION	"0.3.0"
+
+#define MAXITEMS	256
 
 #define FAR_FUTURE		100000000.0
 #define MAX_SOUND_LENGTH	80
@@ -61,6 +63,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 	#if defined _FF2_included
 	MarkNativeAsOptional("FF2_GetBossIndex");
+	MarkNativeAsOptional("FF2_GetBossUserId");
 	MarkNativeAsOptional("FF2_GetBossName");
 	MarkNativeAsOptional("FF2_GetBossSpecial");
 	MarkNativeAsOptional("FF2_GetQueuePoints");
@@ -80,7 +83,8 @@ public void OnPluginStart()
 	else if(StrEqual(buffer, "tf"))
 	{
 		GameType = Engine_TF2;
-		HookEventEx("arena_round_start", OnArenaRoundStart, EventHookMode_PostNoCopy);
+		HookEvent("arena_round_start", OnArenaRoundStart, EventHookMode_PostNoCopy);
+		HookEvent("post_inventory_application", OnPostInventoryApplication);
 	}
 
 	LoadTranslations("common.phrases");
@@ -105,14 +109,29 @@ stock bool IsValidClient(int client, bool replaycheck=true)
 	return true;
 }
 
+stock void GetClassesFromString(const char[] buffer, bool classes[view_as<int>(TFClassType)])
+{
+	classes[TFClass_Unknown] = StrContains(buffer, "mer", false)!=-1;
+	classes[TFClass_Scout] = StrContains(buffer, "sco", false)!=-1;
+	classes[TFClass_Soldier] = StrContains(buffer, "sol", false)!=-1;
+	classes[TFClass_Pyro] = StrContains(buffer, "pyr", false)!=-1;
+	classes[TFClass_DemoMan] = StrContains(buffer, "dem", false)!=-1;
+	classes[TFClass_Heavy] = StrContains(buffer, "hea", false)!=-1;
+	classes[TFClass_Engineer] = StrContains(buffer, "eng", false)!=-1;
+	classes[TFClass_Medic] = StrContains(buffer, "med", false)!=-1;
+	classes[TFClass_Sniper] = StrContains(buffer, "sni", false)!=-1;
+	classes[TFClass_Spy] = StrContains(buffer, "spy", false)!=-1;
+}
+
 // Modules
 
-#tryinclude "textstore/chat.sp"
-#tryinclude "textstore/command.sp"
-#tryinclude "textstore/trails.sp"
-#tryinclude "textstore/tvip.sp"
-#tryinclude "textstore/voting.sp"
-#tryinclude "textstore/tf2/ff2.sp"
+#tryinclude "textstore_defaults/boxes.sp"
+#tryinclude "textstore_defaults/chat.sp"
+#tryinclude "textstore_defaults/command.sp"
+#tryinclude "textstore_defaults/trails.sp"
+#tryinclude "textstore_defaults/tvip.sp"
+#tryinclude "textstore_defaults/voting.sp"
+#tryinclude "textstore_defaults/tf2/ff2.sp"
 
 // Store Events
 
@@ -120,6 +139,11 @@ public ItemResult TextStore_Item(int client, bool equipped, KeyValues item, int 
 {
 	static char buffer[MAX_MATERIAL_LENGTH];
 	item.GetString("type", buffer, MAX_MATERIAL_LENGTH);
+
+	#if defined ITEM_BOXES
+	if(StrEqual(buffer, ITEM_BOXES))
+		return Boxes_Use(client, equipped, item, index, name, count);
+	#endif
 
 	#if defined ITEM_CHAT
 	if(StrEqual(buffer, ITEM_CHAT))
@@ -159,6 +183,13 @@ public void OnArenaRoundStart(Event event, const char[] name, bool dontBroadcast
 {
 	#if defined ITEM_TF2_FF2
 	FF2_OnArenaRoundStart();
+	#endif
+}
+
+public void OnPostInventoryApplication(Event event, const char[] name, bool dontBroadcast)
+{
+	#if defined ITEM_TF2_ITEMS
+	TF2Items_OnPostInventoryApplication(event);
 	#endif
 }
 

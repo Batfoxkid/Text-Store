@@ -1,9 +1,12 @@
-#if defined _chat_processor_included
+#if !defined _chat_processor_included
+	#endinput
+#endif
+
 #define ITEM_CHAT	"chat"
 
 static char ClientTag[MAXPLAYERS+1][MAXLENGTH_NAME];
 
-public ItemResult Chat_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
+stock ItemResult Chat_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
 {
 	static char buffer[MAXLENGTH_NAME];
 	if(GetFeatureStatus(FeatureType_Native, "ChatProcessor_AddClientTag") != FeatureStatus_Available)
@@ -50,4 +53,3 @@ public ItemResult Chat_Use(int client, bool equipped, KeyValues item, int index,
 
 	return used ? Item_Used : Item_None;
 }
-#endif

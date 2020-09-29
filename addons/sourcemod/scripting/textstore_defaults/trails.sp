@@ -29,10 +29,11 @@ enum struct TrailEnum
 		Trail_Remove(client);
 	}
 }
-TrailEnum Trail[MAXPLAYERS+1];
-int TrailOwner[2048];
 
-public ItemResult Trail_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
+static TrailEnum Trail[MAXPLAYERS+1];
+static int TrailOwner[2048];
+
+stock ItemResult Trail_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
 {
 	if(equipped)
 	{
@@ -124,7 +125,7 @@ public void Trail_Create(int userid)
 	TrailOwner[Trail[client].Entity] = client;
 }
 
-void Trail_Remove(int client)
+static void Trail_Remove(int client)
 {
 	if(Trail[client].Entity && IsValidEdict(Trail[client].Entity))
 	{
@@ -140,7 +141,7 @@ void Trail_Remove(int client)
 	Trail[client].Entity = 0;
 }
 
-void Trail_Attach(int entity, int client)
+static void Trail_Attach(int entity, int client)
 {
 	static float org[3], ang[3];
 	static float temp[3] = {0.0, 90.0, 0.0};

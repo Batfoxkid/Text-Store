@@ -1,5 +1,5 @@
 #if defined _textstore_included
-  #endinput
+	#endinput
 #endif
 #define _textstore_included
 
@@ -12,19 +12,17 @@ enum ItemResult
 {
 	Item_None = 0,	// Do nothing to the item
 	Item_Used,	// Delete one use of the item
-	Item_On,	// Equip the item on the client
-	Item_Off	// Unequip the item on the client
+	Item_On,		// Equip the item on the client
+	Item_Off		// Unequip the item on the client
 };
 
 /**
  * Change a client's inventory count/equippment
  *
- * @param client 	Client index of using item
- * @param item	 	Index of the item
- * @param count		If the item is already equipped on the client
- * @param item 		KeyValue of the item (already in place)
- * @param name 		Name of the item
- * @param count 	Amount of the item in the client's inventory
+ * @param client	Client index of using item
+ * @param item		Index of the item
+ * @param count		Amount of the item
+ * @param item		If to force unequip or equip the item
  *
  * @noreturn
  */
@@ -33,8 +31,8 @@ native void TextStore_SetInv(int client, int item, int count=-1, int equip=-1);
 /**
  * Get a client's inventory count/equippment
  *
- * @param client 	Client index of using item
- * @param item	 	Index of the item
+ * @param client	Client index
+ * @param item		Item index
  * @param count		Amount of the item in the client's inventory
  *
  * @return		If the item is equipped
@@ -44,18 +42,65 @@ native bool TextStore_GetInv(int client, int item, int &count=0);
 /**
  * Get, give, remove cash on a client
  *
- * @param client 	Client index of using item
- * @param cash	 	Cash to give/remove
+ * @param client	Client index
+ * @param cash		Cash to give/remove
  *
  * @return		New cash value
  */
 native int TextStore_Cash(int client, int cash=0);
 
 /**
+ * Forces the client to save their current items into the database
+ *
+ * @param client	Client index
+ *
+ * @noreturn
+ */
+native void TextStore_ClientSave(int client);
+
+/**
+ * Forces the client to get their current items from previous save
+ *
+ * @param client	Client index
+ *
+ * @noreturn
+ */
+native void TextStore_ClientReload(int client);
+
+/**
+ * Gets the current amount of items and categories in the store
+ *
+ * @return		Amount of items and categories
+ */
+native int TextStore_GetItems();
+
+/**
+ * Gets the name of the item
+ *
+ * @note		Do not close the KeyValues handle given
+ *
+ * @param item		Item index
+ *
+ * @return		KeyValues handle
+ */
+native KeyValues TextStore_GetItemKv(int item);
+
+/**
+ * Gets the name of the item
+ *
+ * @param item		Item index
+ * @param buffer	String to write to
+ * @param count		Size of the string
+ *
+ * @return		Number of bytes written
+ */
+native int TextStore_GetItemName(int item, char[] buffer, int length);
+
+/**
  * Called when a client is about to be sold
  *
- * @param client 	Client index of seller
- * @param item		Index of the item
+ * @param client	Client index
+ * @param item		Item index
  * @param cash		The current "cash" the client has
  * @param count		The current amount of the item the client has
  * @param sell		The amount the item is being sold for
@@ -70,12 +115,12 @@ forward Action TextStore_OnSellItem(int client, int item, int cash, int &count, 
  * @note		This is not actually a forward, this is called per plugin
  * @note		Do not close the KeyValues handle given
  *
- * @param client 	Client index of using item
+ * @param client	Client index
  * @param equipped	If the item is already equipped on the client
- * @param item 		KeyValue of the item (already in place)
- * @param index 	Index of the item
- * @param name 		Name of the item
- * @param count 	Amount of the item in the client's inventory
+ * @param item		KeyValue of the item (already in place)
+ * @param index		Item Index
+ * @param name		Name of the item
+ * @param count		Amount of the item in the client's inventory
  *
  * @return		Item result
  */
@@ -137,5 +182,9 @@ public void __pl_TextStore_SetNTVOptional()
 	MarkNativeAsOptional("TextStore_GetInv");
 	MarkNativeAsOptional("TextStore_SetInv");
 	MarkNativeAsOptional("TextStore_Cash");
+	MarkNativeAsOptional("TextStore_ClientSave");
+	MarkNativeAsOptional("TextStore_ClientReload");
+	MarkNativeAsOptional("TextStore_GetItems");
+	MarkNativeAsOptional("TextStore_GetItemName");
 }
 #endif
