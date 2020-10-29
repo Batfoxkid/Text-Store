@@ -19,6 +19,11 @@ stock void GenerateClientList(Menu menu, int client=0)
 	}
 }
 
+stock any abs(any i)
+{
+	return i>0 ? i : -i;
+}
+
 stock bool IsValidClient(int client)
 {
 	if(client<1 || client>MaxClients)

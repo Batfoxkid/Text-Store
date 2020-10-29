@@ -7,6 +7,7 @@
 
 #undef REQUIRE_EXTENSIONS
 #include <tf2_stocks>
+#tryinclude <tf2items>
 #define REQUIRE_EXTENSIONS
 
 #undef REQUIRE_PLUGIN
@@ -17,7 +18,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"0.3.0"
+#define PLUGIN_VERSION	"0.3.1"
 
 #define MAXITEMS	256
 
@@ -69,6 +70,17 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	MarkNativeAsOptional("FF2_GetQueuePoints");
 	MarkNativeAsOptional("FF2_GetSpecialKV");
 	MarkNativeAsOptional("FF2_SelectBoss");
+	#endif
+
+	#if defined _tf2items_included
+	MarkNativeAsOptional("TF2Items_CreateItem");
+	MarkNativeAsOptional("TF2Items_SetClassname");
+	MarkNativeAsOptional("TF2Items_SetItemIndex");
+	MarkNativeAsOptional("TF2Items_SetLevel");
+	MarkNativeAsOptional("TF2Items_SetQuality");
+	MarkNativeAsOptional("TF2Items_SetNumAttributes");
+	MarkNativeAsOptional("TF2Items_SetAttribute");
+	MarkNativeAsOptional("TF2Items_GiveNamedItem");
 	#endif
 }
 
@@ -132,6 +144,7 @@ stock void GetClassesFromString(const char[] buffer, bool classes[view_as<int>(T
 #tryinclude "textstore_defaults/tvip.sp"
 #tryinclude "textstore_defaults/voting.sp"
 #tryinclude "textstore_defaults/tf2/ff2.sp"
+#tryinclude "textstore_defaults/tf2/items.sp"
 
 // Store Events
 
@@ -173,6 +186,11 @@ public ItemResult TextStore_Item(int client, bool equipped, KeyValues item, int 
 	#if defined ITEM_TF2_FF2
 	if(StrEqual(buffer, ITEM_TF2_FF2))
 		return FF2_Use(client, equipped, item, index, name, count);
+	#endif
+
+	#if defined ITEM_TF2_ITEMS
+	if(StrEqual(buffer, ITEM_TF2_ITEMS))
+		return TF2Items_Use(client, equipped, item, index, name, count);
 	#endif
 
 	SPrintToChat(client, "This item has no effect!");

@@ -1,6 +1,8 @@
 #pragma semicolon 1
 
 #include <sourcemod>
+#include <clientprefs>
+#include <sdktools_voice>
 #undef REQUIRE_PLUGIN
 #include <adminmenu>
 #define REQUIRE_PLUGIN
@@ -9,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"0.4.0"
+#define PLUGIN_VERSION	"0.5.0"
 
 #define FAR_FUTURE		100000000.0
 #define MAX_SOUND_LENGTH	80
@@ -37,7 +39,7 @@
 #define DATA_STORE	"configs/textstore/store.cfg"
 
 #define SELLRATIO	0.75
-#define MAXITEMS		512
+#define MAXITEMS		1024
 #define MAXONCE		64
 #define MAXCATEGORIES	8
 
@@ -50,7 +52,15 @@ enum StoreTypeEnum
 	Type_Store,
 	Type_Inven,
 	Type_Admin,
-	Type_Craft
+	Type_Craft,
+	Type_Trade
+}
+
+enum ChatTypeEnum
+{
+	Type_None = 0,
+	Type_TradeCash,
+	Type_TradeItem
 }
 
 enum struct InvEnum
@@ -80,10 +90,13 @@ ItemEnum Item[MAXITEMS+1];
 enum struct ClientEnum
 {
 	int Cash;
+	int Target;
 	bool Ready;
 	int Pos[MAXCATEGORIES];
 	StoreTypeEnum StoreType;
+	ChatTypeEnum ChatType;
 	bool BackOutAdmin;
+	bool CanTrade;
 
 	void Setup(int client)
 	{
@@ -104,11 +117,11 @@ enum struct ClientEnum
 			return;
 
 		static char buffer[PLATFORM_MAX_PATH];
-		if(!GetClientAuthId(client, AuthId_SteamID64, buffer, PLATFORM_MAX_PATH))
+		if(!GetClientAuthId(client, AuthId_SteamID64, buffer, sizeof(buffer)))
 			return;
 
 		this.Ready = true;
-		BuildPath(Path_SM, buffer, PLATFORM_MAX_PATH, DATA_PLAYERS, buffer);
+		BuildPath(Path_SM, buffer, sizeof(buffer), DATA_PLAYERS, buffer);
 		if(!FileExists(buffer))
 			return;
 
@@ -118,9 +131,9 @@ enum struct ClientEnum
 
 		int count;
 		static char buffers[3][MAX_ITEM_LENGTH];
-		while(!file.EndOfFile() && file.ReadLine(buffer, PLATFORM_MAX_PATH))
+		while(!file.EndOfFile() && file.ReadLine(buffer, sizeof(buffer)))
 		{
-			count = ExplodeString(buffer, ";", buffers, 3, MAX_ITEM_LENGTH);
+			count = ExplodeString(buffer, ";", buffers, sizeof(buffers), sizeof(buffers[]));
 
 			if(count < 2)
 				continue;
@@ -150,10 +163,10 @@ enum struct ClientEnum
 	void Save(int client)
 	{
 		static char buffer[PLATFORM_MAX_PATH];
-		if(!GetClientAuthId(client, AuthId_SteamID64, buffer, PLATFORM_MAX_PATH))
+		if(!GetClientAuthId(client, AuthId_SteamID64, buffer, sizeof(buffer)))
 			return;
 
-		BuildPath(Path_SM, buffer, PLATFORM_MAX_PATH, DATA_PLAYERS, buffer);
+		BuildPath(Path_SM, buffer, sizeof(buffer), DATA_PLAYERS, buffer);
 		File file = OpenFile(buffer, "w");
 		if(!file)
 			return;
@@ -208,6 +221,7 @@ enum struct ClientEnum
 
 	void ClearPos()
 	{
+		this.Target = 0;
 		for(int i; i<MAXCATEGORIES; i++)
 		{
 			this.Pos[i] = 0;
@@ -221,6 +235,7 @@ ClientEnum Client[MAXPLAYERS+1];
 #include "textstore/natives.sp"
 #include "textstore/crafting.sp"
 #include "textstore/adminmenu.sp"
+#include "textstore/trading.sp"
 
 public Plugin myinfo =
 {
@@ -252,9 +267,13 @@ public void OnPluginStart()
 
 	RegAdminCmd("sm_store_admin", CommandAdmin, ADMFLAG_ROOT, "View the admin menu");
 
+	AddCommandListener(OnSayCommand, "say");
+	AddCommandListener(OnSayCommand, "say_team");
+
 	LoadTranslations("common.phrases");
 	LoadTranslations("core.phrases");
 
+	Trading_PluginStart();
 	AdminMenu_PluginStart();
 }
 
@@ -283,9 +302,18 @@ public void OnConfigsExecuted()
 
 	for(int i=1; i<=MaxClients; i++)
 	{
-		if(IsValidClient(i))
-			OnClientPostAdminCheck(i);
+		if(!IsValidClient(i))
+			continue;
+
+		OnClientPostAdminCheck(i);
+		if(AreClientCookiesCached(i))
+			Trading_CookiesCached(i);
 	}
+}
+
+public void OnClientCookiesCached(int client)
+{
+	Trading_CookiesCached(client);
 }
 
 public void OnClientPostAdminCheck(int client)
@@ -295,11 +323,27 @@ public void OnClientPostAdminCheck(int client)
 
 public void OnClientDisconnect(int client)
 {
+	if(!client)
+		return;
+
 	if(Client[client].Ready)
 	{
 		Client[client].Save(client);
 		Client[client].Ready = false;
 	}
+
+	Client[client].Target = 0;
+
+	for(int target=1; target<=MaxClients; target++)
+	{
+		if(!IsValidClient(target) || Client[target].Target!=client)
+			continue;
+
+		Client[target].Target = 0;
+		PrintToChat(target, "[SM] %t", "Player no longer available");
+	}
+
+	Trading_Disconnect(client);
 }
 
 void ReadCategory(int parent)
@@ -359,7 +403,7 @@ public Action CommandMain(int client, int args)
 		return Plugin_Handled;
 	}
 
-	Client[client].StoreType = Type_Main;
+	//Client[client].StoreType = Type_Main;
 	Main(client);
 	return Plugin_Handled;
 }
@@ -421,6 +465,18 @@ public Action CommandAdmin(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action OnSayCommand(int client, const char[] command, int args)
+{
+	if(Client[client].ChatType != Type_None)
+	{
+		static char buffer[16];
+		GetCmdArgString(buffer, sizeof(buffer));
+		ReplaceString(buffer, sizeof(buffer), "\"", "");
+		return Trading_SayCommand(client, buffer);
+	}
+	return Plugin_Continue;
+}
+
 void Main(int client)
 {
 	if(IsVoteInProgress())
@@ -430,13 +486,15 @@ void Main(int client)
 	}
 
 	Menu menu = new Menu(MainH);
-	menu.SetTitle("Main Menu\n \nCredits: %i\n ", Client[client].Cash);
+	menu.SetTitle("Main Menu\n \nCredits: %d\n ", Client[client].Cash);
 
 	menu.AddItem("0", "Store");
 	menu.AddItem("1", "Inventory");
 
 	if(CraftItems)
 		menu.AddItem("3", "Crafting");
+
+	menu.AddItem("4", "Trading");
 
 	if(CheckCommandAccess(client, "sm_store_admin", ADMFLAG_ROOT))
 		menu.AddItem("2", "Admin Menu");
@@ -468,6 +526,9 @@ public int MainH(Menu menu, MenuAction action, int client, int choice)
 				case 3:
 					Crafting_Command(client, 0);
 
+				case 4:
+					Trading_Command(client, 0);
+
 				default:
 					CommandStore(client, 0);
 			}
@@ -493,7 +554,7 @@ void Store(int client)
 		}
 		else
 		{
-			menu.SetTitle("Store\n \nCredits: %i\n ", Client[client].Cash);
+			menu.SetTitle("Store\n \nCredits: %d\n ", Client[client].Cash);
 		}
 
 		for(int i; i<MAXONCE; i++)
@@ -521,13 +582,13 @@ void Store(int client)
 	panel.SetTitle(buffer);
 	panel.DrawText(Item[item].Desc);
 
-	if(Item[item].Stack)
+	if(Item[item].Stack || Inv[client][item].Count>1)
 	{
-		FormatEx(buffer, sizeof(buffer), " \nYou have %i credits\nYou own %i\n ", Client[client].Cash, Inv[client][item].Count);
+		FormatEx(buffer, sizeof(buffer), " \nYou have %d credits\nYou own %d\n ", Client[client].Cash, Inv[client][item].Count);
 	}
 	else
 	{
-		FormatEx(buffer, sizeof(buffer), " \nYou have %i credits\nYou %sown this item\n ", Client[client].Cash, Inv[client][item].Count<1 ? "don't " : "");
+		FormatEx(buffer, sizeof(buffer), " \nYou have %d credits\nYou %sown this item\n ", Client[client].Cash, Inv[client][item].Count ? "" : "don't ");
 	}
 	panel.DrawText(buffer);
 
@@ -535,7 +596,7 @@ void Store(int client)
 
 	if(Item[item].Cost>0 && !Item[item].Hidden)
 	{
-		FormatEx(buffer, sizeof(buffer), "Buy (%i Credits)", Item[item].Cost);
+		FormatEx(buffer, sizeof(buffer), "Buy (%d Credits)", Item[item].Cost);
 		if((!Item[item].Stack && Inv[client][item].Count>0) || Client[client].Cash<Item[item].Cost)
 		{
 			panel.DrawItem(buffer, ITEMDRAW_DISABLED);
@@ -552,7 +613,7 @@ void Store(int client)
 
 	if(Item[item].Sell > 0)
 	{
-		FormatEx(buffer, sizeof(buffer), "Sell (%i Credits)", Item[item].Sell);
+		FormatEx(buffer, sizeof(buffer), "Sell (%d Credits)", Item[item].Sell);
 		panel.DrawItem(buffer, Inv[client][item].Count>0 ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	}
 
@@ -657,7 +718,7 @@ void Inventory(int client)
 		}
 		else
 		{
-			menu.SetTitle("Inventory\n \nCredits: %i\n ", Client[client].Cash);
+			menu.SetTitle("Inventory\n \nCredits: %d\n ", Client[client].Cash);
 		}
 
 		bool items;
@@ -690,13 +751,13 @@ void Inventory(int client)
 	panel.SetTitle(buffer);
 	panel.DrawText(Item[item].Desc);
 
-	if(Item[item].Stack)
+	if(Item[item].Stack || Inv[client][item].Count>1)
 	{
-		FormatEx(buffer, sizeof(buffer), " \nYou have %i credits\nYou own %i\n ", Client[client].Cash, Inv[client][item].Count);
+		FormatEx(buffer, sizeof(buffer), " \nYou have %d credits\nYou own %d\n ", Client[client].Cash, Inv[client][item].Count);
 	}
 	else
 	{
-		FormatEx(buffer, sizeof(buffer), " \nYou have %i credits\nYou %sown this item\n ", Client[client].Cash, Inv[client][item].Count<1 ? "don't " : "");
+		FormatEx(buffer, sizeof(buffer), " \nYou have %d credits\nYou %sown this item\n ", Client[client].Cash, Inv[client][item].Count ? "" : "don't ");
 	}
 	panel.DrawText(buffer);
 
@@ -704,7 +765,7 @@ void Inventory(int client)
 
 	if(Item[item].Cost>0 && !Item[item].Hidden)
 	{
-		FormatEx(buffer, sizeof(buffer), "Buy (%i Credits)", Item[item].Cost);
+		FormatEx(buffer, sizeof(buffer), "Buy (%d Credits)", Item[item].Cost);
 		if((!Item[item].Stack && Inv[client][item].Count>0) || Client[client].Cash<Item[item].Cost)
 		{
 			panel.DrawItem(buffer, ITEMDRAW_DISABLED);
@@ -721,7 +782,7 @@ void Inventory(int client)
 
 	if(Item[item].Sell > 0)
 	{
-		FormatEx(buffer, sizeof(buffer), "Sell (%i Credits)", Item[item].Sell);
+		FormatEx(buffer, sizeof(buffer), "Sell (%d Credits)", Item[item].Sell);
 		panel.DrawItem(buffer, Inv[client][item].Count>0 ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	}
 
@@ -884,17 +945,17 @@ void AdminMenu(int client)
 					case 2:
 					{
 						Client[target].Cash -= Client[client].Pos[3];
-						CShowActivity2(client, STORE_PREFIX2, "%stoke %s%i%s credits from %s%N", STORE_COLOR, STORE_COLOR2, Client[client].Pos[3], STORE_COLOR, STORE_COLOR2, target);
+						CShowActivity2(client, STORE_PREFIX2, "%stoke %s%d%s credits from %s%N", STORE_COLOR, STORE_COLOR2, Client[client].Pos[3], STORE_COLOR, STORE_COLOR2, target);
 					}
 					case 3:
 					{
 						Client[target].Cash = Client[client].Pos[3];
-						CShowActivity2(client, STORE_PREFIX2, "%sset %s%N's%s credits to %s%i", STORE_COLOR, STORE_COLOR2, target, STORE_COLOR, STORE_COLOR2, Client[client].Pos[3]);
+						CShowActivity2(client, STORE_PREFIX2, "%sset %s%N's%s credits to %s%d", STORE_COLOR, STORE_COLOR2, target, STORE_COLOR, STORE_COLOR2, Client[client].Pos[3]);
 					}
 					default:
 					{
 						Client[target].Cash += Client[client].Pos[3];
-						CShowActivity2(client, STORE_PREFIX2, "%sgave %s%N %i%s credits", STORE_COLOR, STORE_COLOR2, target, Client[client].Pos[3], STORE_COLOR);
+						CShowActivity2(client, STORE_PREFIX2, "%sgave %s%N %d%s credits", STORE_COLOR, STORE_COLOR2, target, Client[client].Pos[3], STORE_COLOR);
 					}
 				}
 			}
@@ -920,7 +981,7 @@ void AdminMenu(int client)
 			int target = GetClientOfUserId(Client[client].Pos[1]);
 			if(IsValidClient(target))
 			{
-				Client[client].Save(client);
+				Client[target].Save(target);
 				CShowActivity2(client, STORE_PREFIX2, "%sforced %s%N%s to save data", STORE_COLOR, STORE_COLOR2, target, STORE_COLOR);
 			}
 			else
@@ -946,7 +1007,7 @@ void AdminMenu(int client)
 			int target = GetClientOfUserId(Client[client].Pos[1]);
 			if(IsValidClient(target))
 			{
-				Client[client].Setup(client);
+				Client[target].Setup(target);
 				CShowActivity2(client, STORE_PREFIX2, "%sforced %s%N%s to reload data", STORE_COLOR, STORE_COLOR2, target, STORE_COLOR);
 			}
 			else
@@ -1009,26 +1070,26 @@ void AdminMenu(int client)
 				{
 					case 2:
 					{
-						if(--Inv[client][Client[client].Pos[3]].Count < 1)
-							Inv[client][Client[client].Pos[3]].Equip = false;
+						if(--Inv[target][Client[client].Pos[3]].Count < 1)
+							Inv[target][Client[client].Pos[3]].Equip = false;
 
 						CShowActivity2(client, STORE_PREFIX2, "%removed %s%N's %s", STORE_COLOR, STORE_COLOR2, target, Item[Client[client].Pos[3]].Name);
 					}
 					case 3:
 					{
-						Inv[client][Client[client].Pos[3]].Count++;
-						Inv[client][Client[client].Pos[3]].Equip = true;
+						Inv[target][Client[client].Pos[3]].Count++;
+						Inv[target][Client[client].Pos[3]].Equip = true;
 						CShowActivity2(client, STORE_PREFIX2, "%sgave and equipped %s%N %s", STORE_COLOR, STORE_COLOR2, target, Item[Client[client].Pos[3]].Name);
 					}
 					case 4:
 					{
-						Inv[client][Client[client].Pos[3]].Count = 0;
-						Inv[client][Client[client].Pos[3]].Equip = false;
+						Inv[target][Client[client].Pos[3]].Count = 0;
+						Inv[target][Client[client].Pos[3]].Equip = false;
 						CShowActivity2(client, STORE_PREFIX2, "%removed all of %s%N's %s", STORE_COLOR, STORE_COLOR2, target, Item[Client[client].Pos[3]].Name);
 					}
 					default:
 					{
-						Inv[client][Client[client].Pos[3]].Count++;
+						Inv[target][Client[client].Pos[3]].Count++;
 						CShowActivity2(client, STORE_PREFIX2, "%sgave %s%N %s", STORE_COLOR, STORE_COLOR2, target, Item[Client[client].Pos[3]].Name);
 					}
 				}

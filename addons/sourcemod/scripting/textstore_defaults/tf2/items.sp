@@ -28,7 +28,7 @@ stock ItemResult TF2Items_Use(int client, bool equipped, KeyValues item, int ind
 	static char buffer[128];
 	item.GetString("class", buffer, sizeof(buffer), DefaultClasses);
 
-	static bool classes[view_as<int>(TFClassType)];
+	static bool classes[10];
 	GetClassesFromString(buffer, classes);
 
 	int slot = item.GetNum("weapon", DefaultSlot);
@@ -45,7 +45,7 @@ stock ItemResult TF2Items_Use(int client, bool equipped, KeyValues item, int ind
 		if(slot != kv.GetNum("weapon", DefaultSlot))
 			continue;
 
-		static bool classes2[view_as<int>(TFClassType)];
+		static bool classes2[10];
 		kv.GetString("class", buffer2, sizeof(buffer2), DefaultClasses);
 		GetClassesFromString(buffer2, classes);
 		for(int c; c<view_as<int>(TFClassType); c++)
@@ -64,7 +64,7 @@ stock ItemResult TF2Items_Use(int client, bool equipped, KeyValues item, int ind
 	if(equipped)
 		return Item_Off;
 
-	FF2Changes[client].Push(index);
+	Loadout[client].Push(index);
 	return Item_On;
 }
 
@@ -72,19 +72,18 @@ void TF2Items_OnPostInventoryApplication(Event event)
 {
 	if(GetFeatureStatus(FeatureType_Native, "TF2Items_GiveNamedItem") == FeatureStatus_Available)
 	{
-		int client = GetClientOfUserId(FF2_GetBossUserId(boss));
-		if(FF2Changes[client] != INVALID_HANDLE)
+		int client = GetClientOfUserId(event.GetInt("userid"));
+		if(client && IsClientInGame(client) && Loadout[client]!=INVALID_HANDLE)
 		{
 			TFClassType class = TF2_GetPlayerClass(client);
-			int length = FF2Changes[client].Length;
+			int length = Loadout[client].Length;
 			for(int i; i<length; i++)
 			{
-				int index = FF2Changes[client].Get(i);
+				int index = Loadout[client].Get(i);
 				int level;
 				if(!TextStore_GetInv(client, index, level) || level<1)
 				{
-					delete pack;
-					FF2Changes[client].Erase(i);
+					Loadout[client].Erase(i);
 					i--;
 					length--;
 					continue;
@@ -94,7 +93,7 @@ void TF2Items_OnPostInventoryApplication(Event event)
 				static char buffer[256];
 				kv.GetString("class", buffer, sizeof(buffer), DefaultClasses);
 	
-				static bool classes[view_as<int>(TFClassType)];
+				static bool classes[10];
 				GetClassesFromString(buffer, classes);
 				if(!classes[class])
 					continue;
@@ -143,7 +142,7 @@ static void GiveWeapon(int client, char[] name, int index, int level, const char
 	}
 
 	char atts[40][40];
-	int count = ExplodeString(att, ";", atts, sizeof(atts), sizeof(atts[]));
+	int count = ExplodeString(attributes, ";", atts, sizeof(atts), sizeof(atts[]));
 
 	if(count % 2)
 		count--;
@@ -153,50 +152,46 @@ static void GiveWeapon(int client, char[] name, int index, int level, const char
 		entity |= PRESERVE_ATTRIBUTES;
 
 	Handle weapon = TF2Items_CreateItem(entity);
-	if(weapon == INVALID_HANDLE)
-		return -1;
-
-	TF2Items_SetClassname(weapon, name);
-	TF2Items_SetItemIndex(weapon, index);
-	TF2Items_SetLevel(weapon, level);
-	TF2Items_SetQuality(weapon, qual);
-
-	TF2Items_SetNumAttributes(weapon, count/2);
-	entity = 0;
-	for(int i; i<count; i+=2)
+	if(weapon != INVALID_HANDLE)
 	{
-		int attrib = StringToInt(atts[i]);
-		if(attrib)
-			TF2Items_SetAttribute(weapon, entity++, attrib, StringToFloat(atts[i+1]));
-	}
-	else
-	{
-		TF2Items_SetNumAttributes(weapon, 0);
-	}
+		TF2Items_SetClassname(weapon, name);
+		TF2Items_SetItemIndex(weapon, index);
+		TF2Items_SetLevel(weapon, level);
+		TF2Items_SetQuality(weapon, 10);
 
-	entity = TF2Items_GiveNamedItem(client, weapon);
-	delete weapon;
-	if(entity < MaxClients)
-		return;
+		TF2Items_SetNumAttributes(weapon, count/2);
+		entity = 0;
+		for(int i; i<count; i+=2)
+		{
+			int attrib = StringToInt(atts[i]);
+			if(attrib)
+				TF2Items_SetAttribute(weapon, entity++, attrib, StringToFloat(atts[i+1]));
+		}
 
-	EquipPlayerWeapon(client, entity);
-	SetEntProp(entity, Prop_Send, "m_bValidatedAttachedEntity", 1);
-	SetEntProp(entity, Prop_Send, "m_iAccountID", GetSteamAccountID(client));
+		entity = TF2Items_GiveNamedItem(client, weapon);
+		delete weapon;
+		if(entity > MaxClients)
+		{
+			EquipPlayerWeapon(client, entity);
+			SetEntProp(entity, Prop_Send, "m_bValidatedAttachedEntity", 1);
+			SetEntProp(entity, Prop_Send, "m_iAccountID", GetSteamAccountID(client));
 
-	if(StrEqual(classname, "tf_weapon_builder", false) && index!=735)
-	{
-		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 1, _, 0);
-		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 1, _, 1);
-		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 1, _, 2);
-		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, 3);
-	}
-	else if(StrEqual(classname, "tf_weapon_sapper", false) || index==735)
-	{
-		SetEntProp(entity, Prop_Send, "m_iObjectType", 3);
-		SetEntProp(entity, Prop_Data, "m_iSubType", 3);
-		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, 0);
-		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, 1);
-		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, 2);
-		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 1, _, 3);
+			if(StrEqual(name, "tf_weapon_builder", false) && index!=735)
+			{
+				SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 1, _, 0);
+				SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 1, _, 1);
+				SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 1, _, 2);
+				SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, 3);
+			}
+			else if(StrEqual(name, "tf_weapon_sapper", false) || index==735)
+			{
+				SetEntProp(entity, Prop_Send, "m_iObjectType", 3);
+				SetEntProp(entity, Prop_Data, "m_iSubType", 3);
+				SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, 0);
+				SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, 1);
+				SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, 2);
+				SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 1, _, 3);
+			}
+		}
 	}
 }

@@ -128,6 +128,45 @@ static void Crafting(int client)
 
 	char buffer[MAX_TITLE_LENGTH];
 	int item = Client[client].GetPos();
+	if(item == -3)
+	{
+		Menu menu = new Menu(CraftingH);
+		menu.SetTitle("Crafting: Available Recipes\n ");
+		bool items, deny;
+		for(int i=1; i<=MaxItems; i++)
+		{
+			if(CraftList[i].Category || !CheckCommandAccess(client, "textstore_all", CraftList[i].Admin, true))
+				continue;
+
+			for(int a=1; a<=MaxItems; a++)
+			{
+				if(CraftList[i].Items[a]<1 || Inv[client][a].Count>=CraftList[i].Items[a])
+					continue;
+
+				deny = true;
+				break;
+			}
+
+			if(deny)
+			{
+				deny = false;
+				continue;
+			}
+
+			items = true;
+			IntToString(i, buffer, sizeof(buffer));
+			menu.AddItem(buffer, CraftList[i].Name);
+		}
+
+		if(!items)
+			menu.AddItem("0", "No Recipes", ITEMDRAW_DISABLED);
+
+		menu.ExitBackButton = true;
+		menu.ExitButton = true;
+		menu.Display(client, MENU_TIME_FOREVER);
+		return;
+	}
+
 	if(!item || CraftList[item].Category)
 	{
 		Menu menu = new Menu(CraftingH);
@@ -137,7 +176,8 @@ static void Crafting(int client)
 		}
 		else
 		{
-			menu.SetTitle("Crafting\n \nCredits: %i\n ", Client[client].Cash);
+			menu.SetTitle("Crafting\n \nCredits: %d\n ", Client[client].Cash);
+			menu.AddItem("-3", "Available Recipes");
 		}
 
 		bool items;
