@@ -11,35 +11,22 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.0.0"
+#define PLUGIN_VERSION	"1.0.1"
 
-#define FAR_FUTURE		100000000.0
-#define MAX_SOUND_LENGTH	80
-#define MAX_MODEL_LENGTH	128
-#define MAX_MATERIAL_LENGTH	128
-#define MAX_ENTITY_LENGTH	48
-#define MAX_EFFECT_LENGTH	48
-#define MAX_ATTACHMENT_LENGTH	48
-#define MAX_ICON_LENGTH		48
-#define MAX_INFO_LENGTH		128
-#define HEX_OR_DEC_LENGTH	12
-#define MAX_ATTRIBUTE_LENGTH	256
-#define MAX_CONDITION_LENGTH	256
-#define MAX_CLASSNAME_LENGTH	64
-#define MAX_PLUGIN_LENGTH	64
-#define MAX_ITEM_LENGTH		48
-#define MAX_DESC_LENGTH		256
+#define MAX_ITEM_LENGTH	48
+#define MAX_DESC_LENGTH	256
 #define MAX_TITLE_LENGTH	192
-#define MAX_NUM_LENGTH		5
-#define VOID_ARG		-1
+#define MAX_NUM_LENGTH	5
 
+#define FPERM_DEFAULT	FPERM_O_EXEC|FPERM_O_READ|FPERM_G_EXEC|FPERM_G_READ|FPERM_U_EXEC|FPERM_U_WRITE|FPERM_U_READ
+
+#define DATA_PATH	"data/textstore/user"
 #define DATA_PLAYERS	"data/textstore/user/%s.txt"
 #define DATA_STORE	"configs/textstore/store.cfg"
 
 #define SELLRATIO	0.75
+#define HIDECHANCE	0.175
 #define MAXCATEGORIES	8
-
-KeyValues StoreKv;
 
 enum StoreTypeEnum
 {
@@ -271,9 +258,13 @@ public void OnPluginEnd()
 public void OnConfigsExecuted()
 {
 	char buffer[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, buffer, PLATFORM_MAX_PATH, DATA_PATH);
+	if(!DirExists(buffer))
+		CreateDirectory(buffer, FPERM_DEFAULT);
+
 	BuildPath(Path_SM, buffer, PLATFORM_MAX_PATH, DATA_STORE);
-	StoreKv = new KeyValues("");
-	StoreKv.ImportFromFile(buffer);
+	KeyValues kv = new KeyValues("");
+	kv.ImportFromFile(buffer);
 
 	if(Items != INVALID_HANDLE)
 	{
@@ -289,7 +280,8 @@ public void OnConfigsExecuted()
 	}
 
 	Items = new ArrayList(sizeof(ItemEnum));
-	ReadCategory(-1);
+	ReadCategory(kv, -1);
+	delete kv;
 
 	Crafting_ConfigsExecuted();
 
@@ -342,50 +334,40 @@ public void OnClientDisconnect(int client)
 	Trading_Disconnect(client);
 }
 
-void ReadCategory(int parent)
+void ReadCategory(KeyValues kv, int parent)
 {
-	StoreKv.GotoFirstSubKey();
+	kv.GotoFirstSubKey();
 	int i;
 	char buffer[MAX_ITEM_LENGTH];
 	do
 	{
 		ItemEnum item;
-		if(!StoreKv.GetSectionName(item.Name, sizeof(item.Name)) || !item.Name[0])
+		if(!kv.GetSectionName(item.Name, sizeof(item.Name)) || !item.Name[0])
 			break;
 
 		item.Parent = parent;
 
-		StoreKv.GetString("admin", buffer, sizeof(buffer));
+		kv.GetString("admin", buffer, sizeof(buffer));
 		item.Admin = ReadFlagString(buffer);
 
-		if(StoreKv.GetNum("cost", -9999) != -9999)
+		if(kv.GetNum("cost", -9999) != -9999)
 		{
 			item.Kv = new KeyValues(item.Name);
-			item.Kv.Import(StoreKv);
-
-			item.Hidden = StoreKv.GetFloat("hidden", 0.175)>GetRandomFloat(0.0, 0.999999);
-
-			/*Item[MaxItems].Cost = StoreKv.GetNum("cost");
-			Item[MaxItems].Stack = view_as<bool>(StoreKv.GetNum("stack", 1));
-			Item[MaxItems].Trade = view_as<bool>(StoreKv.GetNum("trade", 1));
-			Item[MaxItems].Slot = StoreKv.GetNum("slot");
-			StoreKv.GetString("plugin", Item[MaxItems].Plugin, MAX_PLUGIN_LENGTH);
-			StoreKv.GetString("desc", Item[MaxItems].Desc, MAX_DESC_LENGTH, "No Description");
-			ReplaceString(Item[MaxItems].Desc, MAX_DESC_LENGTH, "\\n", "\n");
-			Item[MaxItems].Sell = StoreKv.GetNum("sell", RoundFloat(Item[MaxItems].Cost*SELLRATIO));*/
+			item.Kv.Import(kv);
+			item.Hidden = kv.GetFloat("hidden", HIDECHANCE)>GetRandomFloat(0.0, 0.999999);
 
 			Items.PushArray(item);
 		}
 		else
 		{
 			item.Kv = null;
-			item.Hidden = StoreKv.GetFloat("hidden", 0.0)>GetRandomFloat(0.0, 0.999999);
+			item.Hidden = kv.GetFloat("hidden", 0.0)>GetRandomFloat(0.0, 0.999999);
 
-			ReadCategory(Items.PushArray(item));
+			ReadCategory(kv, Items.PushArray(item));
 		}
 		i++;
-	} while(StoreKv.GotoNextKey());
-	StoreKv.GoBack();
+	} while(kv.GotoNextKey());
+	kv.GoBack();
 }
 
 public Action CommandMain(int client, int args)
