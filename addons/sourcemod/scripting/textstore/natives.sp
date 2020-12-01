@@ -1,3 +1,7 @@
+#define ERROR_NOTREADY		"Store not yet initialized"
+#define ERROR_CLIENTINDEX		"Invalid client index %d"
+#define ERROR_ITEMINDEX		"Invalid item index %d"
+
 void Native_PluginLoad()
 {
 	CreateNative("TextStore_GetInv", Native_GetInv);
@@ -12,50 +16,64 @@ void Native_PluginLoad()
 
 public any Native_GetInv(Handle plugin, int numParams)
 {
+	if(Items == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
 	int client = GetNativeCell(1);
 	if(client<0 || client>MAXPLAYERS)
-		ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index %i", client);
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
 
-	int item = GetNativeCell(2);
-	if(item<0 || item>MAXITEMS)
-		ThrowNativeError(SP_ERROR_NATIVE, "Invalid item index %i", item);
+	int length = Items.Length;
+	int index = GetNativeCell(2);
+	if(index<0 || index>=length)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, index);
 
-	SetNativeCellRef(3, Inv[client][item].Count);
-	return Inv[client][item].Equip;
+	ItemEnum item;
+	Items.GetArray(index, item);
+	SetNativeCellRef(3, item.Count[client]);
+	return item.Equip[client];
 }
 
 public any Native_SetInv(Handle plugin, int numParams)
 {
+	if(Items == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
 	int client = GetNativeCell(1);
 	if(client<0 || client>MAXPLAYERS)
-		ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index %i", client);
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
 
-	int item = GetNativeCell(2);
-	if(item<0 || item>MAXITEMS)
-		ThrowNativeError(SP_ERROR_NATIVE, "Invalid item index %i", item);
+	int length = Items.Length;
+	int index = GetNativeCell(2);
+	if(index<0 || index>=length)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, index);
+
+	ItemEnum item;
+	Items.GetArray(index, item);
 
 	int count = GetNativeCell(3);
 	if(count >= 0)
-		Inv[client][item].Count = count;
+		item.Count[client] = count;
 
 	switch(GetNativeCell(4))
 	{
 		case 0:
 		{
-			Inv[client][item].Equip = false;
+			item.Equip[client] = false;
 		}
 		case 1:
 		{
-			Inv[client][item].Equip = true;
+			item.Equip[client] = true;
 		}
 	}
+	Items.SetArray(index, item);
 }
 
 public any Native_Cash(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
 	if(client<0 || client>MAXPLAYERS)
-		ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index %i", client);
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
 
 	int cash = GetNativeCell(2);
 	if(cash)
@@ -68,7 +86,7 @@ public any Native_ClientSave(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
 	if(client<0 || client>MAXPLAYERS)
-		ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index %i", client);
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
 
 	OnClientDisconnect(client);
 }
@@ -77,32 +95,48 @@ public any Native_ClientReload(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
 	if(client<0 || client>MAXPLAYERS)
-		ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index %i", client);
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
 
 	OnClientPostAdminCheck(client);
 }
 
 public any Native_GetItems(Handle plugin, int numParams)
 {
-	return MaxItems;
+	if(Items == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
+	return Items.Length;
 }
 
 public any Native_GetItemKv(Handle plugin, int numParams)
 {
-	int item = GetNativeCell(1);
-	if(item<0 || item>MAXITEMS)
-		ThrowNativeError(SP_ERROR_NATIVE, "Invalid item index %i", item);
+	if(Items == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
 
-	return Item[item].Kv;
+	int length = Items.Length;
+	int index = GetNativeCell(1);
+	if(index<0 || index>=length)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, index);
+
+	ItemEnum item;
+	Items.GetArray(index, item);
+	return item.Kv;
 }
 
 public any Native_GetItemName(Handle plugin, int numParams)
 {
-	int item = GetNativeCell(1);
-	if(item<0 || item>MAXITEMS)
-		ThrowNativeError(SP_ERROR_NATIVE, "Invalid item index %i", item);
+	if(Items == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
+	int length = Items.Length;
+	int index = GetNativeCell(1);
+	if(index<0 || index>=length)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, index);
+
+	ItemEnum item;
+	Items.GetArray(index, item);
 
 	int bytes;
-	SetNativeString(2, Item[item].Name, GetNativeCell(3), _, bytes);
+	SetNativeString(2, item.Name, GetNativeCell(3), _, bytes);
 	return bytes;
 }

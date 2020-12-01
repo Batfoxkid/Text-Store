@@ -1,19 +1,10 @@
-enum struct TradeEnum
-{
-	bool Sent;
-	int Tradee;
-	int Trader;
-
-	int Items[MAXITEMS+1];
-}
-
 static ArrayList TradeList;
 static Cookie TradeCookie;
 
 void Trading_PluginStart()
 {
 	if(TradeList == INVALID_HANDLE)
-		TradeList = new ArrayList(sizeof(TradeEnum));
+		TradeList = new ArrayList();
 
 	TradeCookie = new Cookie("textstore_trading", "If to enable receiving trade offers", CookieAccess_Public);
 
@@ -32,14 +23,17 @@ void Trading_Disconnect(int client)
 {
 	Client[client].CanTrade = false;
 
+	StringMap map;
 	int length = TradeList.Length;
 	for(int i; i<length; i++)
 	{
-		TradeEnum trade;
-		TradeList.GetArray(i, trade, sizeof(trade));
-		if(trade.Trader!=client && trade.Tradee!=client)
+		map = TradeList.Get(i);
+
+		int value;
+		if(map.GetValue("trader", value) && value!=client && map.GetValue("tradee", value) && value!=client)
 			continue;
 
+		delete map;
 		TradeList.Erase(i);
 		i--;
 		length--;
@@ -56,29 +50,32 @@ Action Trading_SayCommand(int client, const char[] buffer)
 			{
 				if(IsCharNumeric(buffer[0]) || buffer[0]=='-')
 				{
+					StringMap map;
 					int length = TradeList.Length;
 					for(int i; i<length; i++)
 					{
-						TradeEnum trade;
-						TradeList.GetArray(i, trade, sizeof(trade));
-						if(trade.Trader!=client || trade.Tradee!=Client[client].Target)
+						map = TradeList.Get(i);
+
+						int value;
+						if(!map.GetValue("trader", value) || value!=client || !map.GetValue("tradee", value) || value!=Client[client].Target)
 							continue;
 
-						if(trade.Sent)
+						if(map.GetValue("sent", value))
 							break;
 
-						trade.Items[0] = StringToInt(buffer);
-						if(trade.Items[0] > 0)
+						value = StringToInt(buffer);
+						if(value > 0)
 						{
-							if(Client[Client[client].Target].Cash < trade.Items[0])
-								trade.Items[0] = Client[Client[client].Target].Cash;
+							if(Client[Client[client].Target].Cash < value)
+								value = Client[Client[client].Target].Cash;
 						}
-						else if(trade.Items[0] < 0)
+						else if(value < 0)
 						{
-							if(Client[client].Cash < -trade.Items[0])
-								trade.Items[0] = Client[client].Cash;
+							if(Client[client].Cash < -value)
+								value = Client[client].Cash;
 						}
-						TradeList.SetArray(i, trade);
+
+						map.SetValue("cash", value);
 						Trading(client);
 						return Plugin_Handled;
 					}
@@ -88,31 +85,38 @@ Action Trading_SayCommand(int client, const char[] buffer)
 			{
 				if(IsCharNumeric(buffer[0]) || buffer[0]=='-')
 				{
+					StringMap map;
 					int length = TradeList.Length;
 					for(int i; i<length; i++)
 					{
-						TradeEnum trade;
-						TradeList.GetArray(i, trade, sizeof(trade));
-						if(trade.Trader!=client || trade.Tradee!=Client[client].Target)
+						map = TradeList.Get(i);
+
+						int value;
+						if(!map.GetValue("trader", value) || value!=client || !map.GetValue("tradee", value) || value!=Client[client].Target)
 							continue;
 
-						if(!trade.Sent)
+						if(!map.GetValue("sent", value))
 						{
-							int item = Client[client].GetPos();
-							if(item && !Item[item].Items[0])
+							int index = Client[client].GetPos();
+							if(index == -1)
 							{
-								trade.Items[item] = StringToInt(buffer);
-								if(trade.Items[item] > 0)
+								ItemEnum item;
+								Items.GetArray(index, item);
+								value = StringToInt(buffer);
+								if(value > 0)
 								{
-									if(Inv[Client[client].Target][item].Count < trade.Items[item])
-										trade.Items[item] = Inv[Client[client].Target][item].Count;
+									if(item.Count[Client[client].Target] < value)
+										value = item.Count[Client[client].Target];
 								}
-								else if(trade.Items[item] < 0)
+								else if(value < 0)
 								{
-									if(Inv[client][item].Count < -trade.Items[item])
-										trade.Items[item] = Inv[client][item].Count;
+									if(item.Count[client] < -value)
+										value = -item.Count[client];
 								}
-								TradeList.SetArray(i, trade);
+
+								static char num[MAX_NUM_LENGTH];
+								IntToString(index, num, sizeof(num));
+								map.SetValue(num, value);
 								Trading(client);
 								return Plugin_Handled;
 							}
@@ -141,12 +145,8 @@ public Action Trading_Command(int client, int args)
 
 static void Trading(int client)
 {
-	if(IsVoteInProgress())
-	{
-		PrintToChat(client, "[SM] %t", "Vote in Progress");
-		return;
-	}
-
+	int value;
+	StringMap map;
 	char buffer[MAX_TITLE_LENGTH];
 	static char buffer2[MAX_NUM_LENGTH];
 	if(!IsValidClient(Client[client].Target) || !CanTradeTo(client, Client[client].Target))
@@ -160,39 +160,40 @@ static void Trading(int client)
 		int length = TradeList.Length;
 		for(int i; i<length; i++)
 		{
-			TradeEnum trade;
-			TradeList.GetArray(i, trade, sizeof(trade));
+			map = TradeList.Get(i);
 
-			if(trade.Sent && trade.Tradee==client)
+			bool sent = map.GetValue("sent", value);
+			if(sent && map.GetValue("tradee", value) && value==client)
 			{
-				if(!IsValidClient(trade.Trader))
+				if(map.GetValue("trader", value) && IsValidClient(value))
 				{
-					TradeList.Erase(i);
-					i--;
-					length--;
+					IntToString(value, buffer2, sizeof(buffer2));
+					FormatEx(buffer, sizeof(buffer), "[<-] %N", value);
+					menu.AddItem(buffer2, buffer, choosen[value] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+					choosen[value] = true;
 					continue;
 				}
-
-				IntToString(trade.Trader, buffer2, sizeof(buffer2));
-				FormatEx(buffer, sizeof(buffer), "[<-] %N", trade.Trader);
-				menu.AddItem(buffer2, buffer, choosen[trade.Trader] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
-				choosen[trade.Trader] = true;
 			}
-			else if(trade.Trader == client)
+			else if(map.GetValue("trader", value) && value==client)
 			{
-				if(!IsValidClient(trade.Tradee))
+				if(map.GetValue("tradee", value) && IsValidClient(value))
 				{
-					TradeList.Erase(i);
-					i--;
-					length--;
+					IntToString(value, buffer2, sizeof(buffer2));
+					FormatEx(buffer, sizeof(buffer), "[%s] %N", sent ? "->" : "--", value);
+					menu.AddItem(buffer2, buffer, choosen[value] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+					choosen[value] = true;
 					continue;
 				}
-
-				IntToString(trade.Tradee, buffer2, sizeof(buffer2));
-				FormatEx(buffer, sizeof(buffer), "[%s] %N", trade.Sent ? "->" : "--", trade.Tradee);
-				menu.AddItem(buffer2, buffer, choosen[trade.Tradee] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
-				choosen[trade.Tradee] = true;
 			}
+			else
+			{
+				continue;
+			}
+
+			delete map;
+			TradeList.Erase(i);
+			i--;
+			length--;
 		}
 
 		for(int target=1; target<=MaxClients; target++)
@@ -211,161 +212,183 @@ static void Trading(int client)
 		return;
 	}
 
+	int trader;
 	int length = TradeList.Length;
 	for(int i; i<length; i++)
 	{
-		TradeEnum trade;
-		TradeList.GetArray(i, trade, sizeof(trade));
-		if(trade.Trader == client)
+		map = TradeList.Get(i);
+
+		if(map.GetValue("trader", trader) && trader==client)
 		{
-			if(trade.Tradee != Client[client].Target)
+			int worth;
+			if(!map.GetValue("tradee", worth) || worth!=Client[client].Target)
 				continue;
 
-			if(trade.Sent)
+			if(map.GetValue("sent", value))
 			{
 				Menu menu = new Menu(TradingExtraH);
-				menu.SetTitle("Trading: %s\n \nAre you sure you want to cancel this trade?", trade.Tradee);
-				menu.AddItem("-2", "Yes");
-				menu.AddItem("-1", "No");
+				menu.SetTitle("Trading: %N\n \nAre you sure you want to cancel this trade?", worth);
+				menu.AddItem("-3", "Yes");
+				menu.AddItem("-2", "No");
 				menu.Display(client, MENU_TIME_FOREVER);
 				return;
 			}
 
 			Menu menu = new Menu(TradingH);
 
-			FormatEx(buffer, sizeof(buffer), "[%s] Credits x%d%s", trade.Items[0] ? trade.Items[0]>0 ? "+" : "-" : " ", abs(trade.Items[0]), trade.Items[0] ? "" : " (Type number in chat to change)");
-			menu.AddItem("0", buffer);
-
-			int worth = trade.Items[0];
-			bool unsellable;
-			for(int item=1; item<=MaxItems; item++)
+			bool found;
+			if(map.GetValue("cash", worth) && worth)
 			{
-				if(!trade.Items[item])
+				found = true;
+				FormatEx(buffer, sizeof(buffer), "[%s] Credits x%d%s", worth ? worth>0 ? "+" : "-" : " ", abs(worth));
+			}
+			else
+			{
+				worth = 0;
+				FormatEx(buffer, sizeof(buffer), "[ ] Credits x0 (Type number in chat to change)");
+			}
+			menu.AddItem("-1", buffer);
+
+			ItemEnum item;
+			bool unsellable;
+			length = Items.Length;
+			for(i=0; i<length; i++)
+			{
+				Items.GetArray(i, item);
+				IntToString(i, buffer2, sizeof(buffer2));
+				if(!map.GetValue(buffer2, value) || !value)
 					continue;
 
-				bool pos = trade.Items[item]>0;
-				if(trade.Items[item]>1 || trade.Items[item]<-1)
+				bool pos = value>0;
+				if(value>1 || value<-1)
 				{
-					FormatEx(buffer, sizeof(buffer), "[%s] %s x%d", pos ? "+" : "-", Item[item].Name, pos ? trade.Items[item] : -trade.Items[item]);
+					FormatEx(buffer, sizeof(buffer), "[%s] %s x%d", pos ? "+" : "-", item.Name, pos ? value : -value);
 				}
 				else
 				{
-					FormatEx(buffer, sizeof(buffer), "[%s] %s", pos ? "+" : "-", Item[item].Name);
+					FormatEx(buffer, sizeof(buffer), "[%s] %s", pos ? "+" : "-", item.Name);
 				}
 
-				if(Item[item].Sell > 0)
+				int sell = item.Kv.GetNum("sell", RoundFloat(item.Kv.GetNum("cost")*SELLRATIO));
+				if(sell > 0)
 				{
-					worth += Item[item].Sell*trade.Items[item];
+					worth += sell*value;
 				}
 				else
 				{
 					unsellable = true;
 				}
 
-				IntToString(item, buffer2, sizeof(buffer2));
+				found = true;
 				menu.AddItem(buffer2, buffer);
 			}
 
 			menu.SetTitle("Trading: %N\nNetworth: %d%s\n ", Client[client].Target, worth, unsellable ? "*" : "");
-			menu.AddItem("-1", "Add Your Item");
+			menu.AddItem("-2", "Add Your Item");
 			FormatEx(buffer, sizeof(buffer), "Add %N's Item", Client[client].Target);
-			menu.AddItem("-2", buffer);
-			menu.AddItem("-3", "Confirm Trade");
+			menu.AddItem("-3", buffer);
+			menu.AddItem(found ? "-4" : "-2", "Confirm Trade", found ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 			menu.ExitBackButton = true;
 			menu.ExitButton = true;
 			menu.Display(client, MENU_TIME_FOREVER);
 			return;
 		}
-		else if(trade.Sent && trade.Tradee==client)
+		else if(map.GetValue("sent", value) && value && map.GetValue("tradee", value) && value==client)
 		{
-			if(trade.Trader != Client[client].Target)
+			if(trader != Client[client].Target)
 				continue;
 
 			Client[client].ChatType = Type_TradeCash;
 
 			Menu menu = new Menu(TradingH);
 
-			bool missing;
 			int worth;
-			if(trade.Items[0])
+			bool missing;
+			if(map.GetValue("cash", worth) && worth)
 			{
-				if(trade.Items[0] > 0)
+				if(worth > 0)
 				{
-					if(Client[client].Cash < trade.Items[0])
+					if(Client[client].Cash < worth)
 						missing = true;
 
-					FormatEx(buffer, sizeof(buffer), "[-] Credits x%d", trade.Items[0]);
+					FormatEx(buffer, sizeof(buffer), "[-] Credits x%d", worth);
 				}
 				else
 				{
-					if(Client[trade.Trader].Cash < -trade.Items[0])
+					if(Client[trader].Cash < -worth)
 						missing = true;
 
-					FormatEx(buffer, sizeof(buffer), "[+] Credits x%d", -trade.Items[0]);
+					FormatEx(buffer, sizeof(buffer), "[+] Credits x%d", -worth);
 				}
 
-				menu.AddItem("-4", buffer, ITEMDRAW_DISABLED);
-				worth = -trade.Items[0];
+				menu.AddItem("-5", buffer, ITEMDRAW_DISABLED);
+				worth = -worth;
 			}
 
+			ItemEnum item;
 			bool unsellable;
-			for(int item=1; item<=MaxItems; item++)
+			length = Items.Length;
+			for(i=0; i<length; i++)
 			{
-				if(!trade.Items[item])
+				Items.GetArray(i, item);
+				IntToString(i, buffer2, sizeof(buffer2));
+				if(!map.GetValue(buffer2, value) || !value)
 					continue;
 
-				if(trade.Items[item] > 0)
+				if(value > 0)
 				{
-					if(Inv[client][item].Count < trade.Items[item])
+					if(item.Count[client] < value)
 					{
 						missing = true;
 					}
-					else if(trade.Items[item] > 1)
+					else if(value > 1)
 					{
-						FormatEx(buffer, sizeof(buffer), "[-] %s x%d", Item[item].Name, trade.Items[item]);
+						FormatEx(buffer, sizeof(buffer), "[-] %s x%d", item.Name, value);
 					}
 					else
 					{
-						FormatEx(buffer, sizeof(buffer), "[-] %s", Item[item].Name);
+						FormatEx(buffer, sizeof(buffer), "[-] %s", item.Name);
 					}
 				}
-				else if(Inv[trade.Trader][item].Count < -trade.Items[item])
+				else if(item.Count[trader] < -value)
 				{
 					missing = true;
 				}
-				else if(trade.Items[item] < -1)
+				else if(value < -1)
 				{
-					FormatEx(buffer, sizeof(buffer), "[+] %s x%d", Item[item].Name, -trade.Items[item]);
+					FormatEx(buffer, sizeof(buffer), "[+] %s x%d", item.Name, -value);
 				}
 				else
 				{
-					FormatEx(buffer, sizeof(buffer), "[+] %s", Item[item].Name);
+					FormatEx(buffer, sizeof(buffer), "[+] %s", item.Name);
 				}
 
 				if(missing)
 				{
+					delete map;
 					delete menu;
+					TradeList.Erase(i);
 					SPrintToChat(client, "Items are no longer available");
 					Trading(client);
 					return;
 				}
 
-				if(Item[item].Sell > 0)
+				int sell = item.Kv.GetNum("sell", RoundFloat(item.Kv.GetNum("cost")*SELLRATIO));
+				if(sell > 0)
 				{
-					worth -= Item[item].Sell*trade.Items[item];
+					worth -= sell*value;
 				}
 				else
 				{
 					unsellable = true;
 				}
 
-				IntToString(item, buffer2, sizeof(buffer2));
 				menu.AddItem(buffer2, buffer, ITEMDRAW_DISABLED);
 			}
 
-			menu.SetTitle("Trading: %N\nNetworth: %d%s\n ", trade.Trader, worth, unsellable ? "*" : "");
-			menu.AddItem("-5", "Accept Trade");
-			menu.AddItem("-4", "Decline Trade");
+			menu.SetTitle("Trading: %N\nNetworth: %d%s\n ", trader, worth, unsellable ? "*" : "");
+			menu.AddItem("-6", "Accept Trade");
+			menu.AddItem("-5", "Decline Trade");
 			menu.ExitBackButton = true;
 			menu.ExitButton = false;
 			menu.Display(client, MENU_TIME_FOREVER);
@@ -376,13 +399,13 @@ static void Trading(int client)
 	Client[client].ChatType = Type_TradeCash;
 	Menu menu = new Menu(TradingH);
 	menu.SetTitle("Trading: %N\n ", Client[client].Target);
-	menu.AddItem("-1", "Click to add an item");
-	menu.AddItem("-1", "Click an item to adjust the amount or remove");
-	menu.AddItem("-1", "[+] means your receiving this item");
-	menu.AddItem("-1", "[-] means your giving this item");
-	menu.AddItem("-1", "Click on Confirm Trade once finished");
-	menu.AddItem("-1", "Click on Exit to cancel the trade");
-	menu.AddItem("-1", "This trade will save until the player leaves");
+	menu.AddItem("-2", "Click to add an item");
+	menu.AddItem("-2", "Click an item to adjust the amount or remove");
+	menu.AddItem("-2", "[+] means your receiving this item");
+	menu.AddItem("-2", "[-] means your giving this item");
+	menu.AddItem("-2", "Click on Confirm Trade once finished");
+	menu.AddItem("-2", "Click on Exit to cancel the trade");
+	menu.AddItem("-2", "This trade will save until the player leaves");
 	menu.ExitBackButton = true;
 	menu.ExitButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -390,50 +413,47 @@ static void Trading(int client)
 
 static void TradingInv(int client)
 {
-	if(IsVoteInProgress())
-	{
-		PrintToChat(client, "[SM] %t", "Vote in Progress");
-		return;
-	}
-
 	if(!IsValidClient(Client[client].Target))
 	{
 		Trading(client);
 		return;
 	}
 
-	int item = Client[client].GetPos();
-	if(!item || Item[item].Items[0]>0)
+	ItemEnum item;
+	int primary = Client[client].GetPos();
+	if(primary != -1)
+		Items.GetArray(primary, item);
+
+	if(!item.Kv)
 	{
 		int target = Client[client].StoreType==Type_Inven ? client : Client[client].Target;
 
 		Menu menu = new Menu(TradingInvH);
-		if(item)
+		if(primary == -1)
 		{
-			menu.SetTitle("Trading: %s\n%N's Inventory\n ", Item[item].Name, target);
+			menu.SetTitle("Trading: %N\n%N's Inventory\nCredits: %d\n ", Client[client].Target, target, Client[target].Cash);
 		}
 		else
 		{
-			menu.SetTitle("Trading: %N\nCredits: %d\n%N's Inventory\n ", Client[client].Target, Client[target].Cash, target);
+			menu.SetTitle("Trading: %s\n%N's Inventory\n ", item.Name, target);
 		}
 
-		bool items;
-		for(int i; i<MAXONCE; i++)
+		bool found;
+		int length = Items.Length;
+		for(int i; i<length; i++)
 		{
-			if(ITEM < 1)
-				break;
-
-			if(Item[ITEM].Items[0]<1 && (!Item[ITEM].Trade || Inv[target][ITEM].Count<1))
+			Items.GetArray(i, item);
+			if(item.Parent!=primary || (item.Kv && (item.Count[target]<1 || !item.Kv.GetNum("trade", 1))))
 				continue;
 
-			items = true;
 			static char buffer[MAX_NUM_LENGTH];
-			IntToString(ITEM, buffer, MAX_NUM_LENGTH);
-			menu.AddItem(buffer, Item[ITEM].Name);
+			IntToString(i, buffer, sizeof(buffer));
+			menu.AddItem(buffer, item.Name);
+			found = true;
 		}
 
-		if(!items)
-			menu.AddItem("0", "No Items", ITEMDRAW_DISABLED);
+		if(!found)
+			menu.AddItem("-1", "No Items", ITEMDRAW_DISABLED);
 
 		menu.ExitBackButton = true;
 		menu.ExitButton = true;
@@ -444,32 +464,36 @@ static void TradingInv(int client)
 	Client[client].ChatType = Type_TradeItem;
 
 	Panel panel = new Panel();
-	char buffer[MAX_TITLE_LENGTH];
-	FormatEx(buffer, sizeof(buffer), "%s\n ", Item[item].Name);
+	char buffer[MAX_DESC_LENGTH];
+	FormatEx(buffer, sizeof(buffer), "%s\n ", item.Name);
 	panel.SetTitle(buffer);
-	panel.DrawText(Item[item].Desc);
 
-	bool targetHas = Inv[Client[client].Target][item].Count>1;
-	bool clientHas = Inv[client][item].Count>1;
-	if(Item[item].Stack || targetHas || clientHas)
+	item.Kv.GetString("desc", buffer, sizeof(buffer), "No Description");
+	ReplaceString(buffer, sizeof(buffer), "\\n", "\n");
+	panel.DrawText(buffer);
+
+	bool targetHas = item.Count[Client[client].Target]>1;
+	bool clientHas = item.Count[client]>1;
+	if(item.Kv.GetNum("stack", 1) || targetHas || clientHas)
 	{
-		FormatEx(buffer, sizeof(buffer), " \n%N owns %d\nYou own %d\n ", Client[client].Target, Inv[Client[client].Target][item].Count, Inv[client][item].Count);
+		FormatEx(buffer, sizeof(buffer), " \n%N owns %d\nYou own %d\n ", Client[client].Target, item.Count[Client[client].Target], item.Count[client]);
 	}
 	else
 	{
-		FormatEx(buffer, sizeof(buffer), " \n%N %s this item\nYou %sown this item\n ", Client[client].Target, Inv[Client[client].Target][item].Count ? "owns" : "doesn't own", Inv[client][item].Count ? "" : "don't ");
+		FormatEx(buffer, sizeof(buffer), " \n%N %s this item\nYou %sown this item\n ", Client[client].Target, item.Count[Client[client].Target] ? "owns" : "doesn't own", item.Count[client] ? "" : "don't ");
 	}
 	panel.DrawText(buffer);
 
 	if(!targetHas)
-		targetHas = Inv[Client[client].Target][item].Count>0;
+		targetHas = item.Count[Client[client].Target]>0;
 
 	if(!clientHas)
-		clientHas = Inv[client][item].Count>0;
+		clientHas = item.Count[client]>0;
 
-	if(Item[item].Cost>0 && !Item[item].Hidden)
+	int cost = item.Kv.GetNum("cost");
+	if(cost>0 && !item.Hidden)
 	{
-		FormatEx(buffer, sizeof(buffer), "Buy Price: %d Credits", Item[item].Cost);
+		FormatEx(buffer, sizeof(buffer), "Buy Price: %d Credits", cost);
 		panel.DrawText(buffer);
 	}
 	else
@@ -477,9 +501,10 @@ static void TradingInv(int client)
 		panel.DrawText("Buy Price: N/A");
 	}
 
-	if(Item[item].Sell > 0)
+	int sell = item.Kv.GetNum("sell", RoundFloat(cost*SELLRATIO));
+	if(sell > 0)
 	{
-		FormatEx(buffer, sizeof(buffer), "Sell Price: %d Credits\n ", Item[item].Sell);
+		FormatEx(buffer, sizeof(buffer), "Sell Price: %d Credits\n ", sell);
 		panel.DrawText(buffer);
 	}
 	else
@@ -507,14 +532,14 @@ static void TradingInv(int client)
 
 	if(clientHas)
 	{
-		int rand = GetRandomInt(1, Inv[client][item].Count);
+		int rand = GetRandomInt(1, item.Count[client]);
 		FormatEx(buffer, sizeof(buffer), "Example: '-%d' adds %d of your items", rand, rand);
 		panel.DrawText(buffer);
 	}
 
 	if(targetHas)
 	{
-		int rand = GetRandomInt(1, Inv[Client[client].Target][item].Count);
+		int rand = GetRandomInt(1, item.Count[Client[client].Target]);
 		FormatEx(buffer, sizeof(buffer), "Example: '%d' adds %d of %N's items", rand, rand, Client[client].Target);
 		panel.DrawText(buffer);
 	}
@@ -571,48 +596,60 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 		{
 			static char buffer[MAX_NUM_LENGTH];
 			menu.GetItem(choice, buffer, sizeof(buffer));
-			int item = StringToInt(buffer);
-			switch(item)
+			int value = StringToInt(buffer);
+			switch(value)
 			{
-				case -5:
+				case -6:
 				{
-					int length = TradeList.Length-1;
-					for(int i=length; i>=0; i--)
+					StringMap map;
+					int length = TradeList.Length;
+					for(int i; i<length; i++)
 					{
-						TradeEnum trade;
-						TradeList.GetArray(i, trade, sizeof(trade));
-						if(trade.Tradee==client && trade.Trader==Client[client].Target)
+						map = TradeList.Get(i);
+						if(map.GetValue("tradee", value) && value==client && map.GetValue("trader", value) && value==Client[client].Target)
 						{
 							if(IsValidClient(Client[client].Target))
 							{
 								bool missing;
-								if(trade.Items[0])
+								if(map.GetValue("cash", value))
 								{
-									if(trade.Items[0] > 0)
+									if(value)
 									{
-										if(Client[client].Cash < trade.Items[0])
+										if(value > 0)
+										{
+											if(Client[client].Cash < value)
+												missing = true;
+										}
+										else if(Client[Client[client].Target].Cash < -value)
+										{
 											missing = true;
-									}
-									else if(Client[trade.Trader].Cash < -trade.Items[0])
-									{
-										missing = true;
+										}
 									}
 								}
-
-								for(item=1; item<=MaxItems; item++)
+								else
 								{
-									if(!trade.Items[item])
+									value = 0;
+								}
+
+								ItemEnum item;
+								length = Items.Length;
+								int[] items = new int[length];
+								for(i=0; i<length; i++)
+								{
+									Items.GetArray(i, item);
+									IntToString(i, buffer, sizeof(buffer));
+									if(!map.GetValue(buffer, items[i]) || !items[i])
 										continue;
 
-									if(trade.Items[item] > 0)
+									if(items[i] > 0)
 									{
-										if(Inv[client][item].Count < trade.Items[item])
+										if(item.Count[client] < items[i])
 										{
 											missing = true;
 											break;
 										}
 									}
-									else if(Inv[trade.Trader][item].Count < -trade.Items[item])
+									else if(item.Count[Client[client].Target] < -items[i])
 									{
 										missing = true;
 										break;
@@ -625,20 +662,42 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 								}
 								else
 								{
-									Client[client].Cash -= trade.Items[0];
-									Client[trade.Trader].Cash += trade.Items[0];
-									for(item=1; item<=MaxItems; item++)
+									Client[client].Cash -= value;
+									Client[Client[client].Target].Cash += value;
+									for(i=0; i<length; i++)
 									{
-										if(!trade.Items[item])
+										if(!items[i])
 											continue;
 
-										Inv[client][item].Count -= trade.Items[item];
-										Inv[trade.Trader][item].Count += trade.Items[item];
+										Items.GetArray(i, item);
+										item.Count[client] -= items[i];
+										item.Count[Client[client].Target] += items[i];
+										Items.SetArray(i, item);
 									}
 									SPrintToChat(Client[client].Target, "%s%N %saccepted your trade offer", STORE_COLOR2, client, STORE_COLOR);
 								}
 							}
 
+							delete map;
+							TradeList.Erase(i);
+							break;
+						}
+					}
+					Client[client].Target = 0;
+				}
+				case -5:
+				{
+					StringMap map;
+					int length = TradeList.Length;
+					for(int i; i<length; i++)
+					{
+						map = TradeList.Get(i);
+						if(map.GetValue("tradee", value) && value==client && map.GetValue("trader", value) && value==Client[client].Target)
+						{
+							if(IsValidClient(Client[client].Target))
+								SPrintToChat(Client[client].Target, "%s%N %sdeclined your trade offer", STORE_COLOR2, client, STORE_COLOR);
+
+							delete map;
 							TradeList.Erase(i);
 							break;
 						}
@@ -647,33 +706,14 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 				}
 				case -4:
 				{
-					int length = TradeList.Length-1;
-					for(int i=length; i>=0; i--)
+					StringMap map;
+					int length = TradeList.Length;
+					for(int i; i<length; i++)
 					{
-						TradeEnum trade;
-						TradeList.GetArray(i, trade, sizeof(trade));
-						if(trade.Tradee==client && trade.Trader==Client[client].Target)
+						map = TradeList.Get(i);
+						if(map.GetValue("trader", value) && value==client && map.GetValue("tradee", value) && value==Client[client].Target)
 						{
-							if(IsValidClient(Client[client].Target))
-								SPrintToChat(Client[client].Target, "%s%N %sdeclined your trade offer", STORE_COLOR2, client, STORE_COLOR);
-
-							TradeList.Erase(i);
-							break;
-						}
-					}
-					Client[client].Target = 0;
-				}
-				case -3:
-				{
-					int length = TradeList.Length-1;
-					for(int i=length; i>=0; i--)
-					{
-						TradeEnum trade;
-						TradeList.GetArray(i, trade, sizeof(trade));
-						if(trade.Trader==client && trade.Tradee==Client[client].Target)
-						{
-							trade.Sent = true;
-							TradeList.SetArray(i, trade);
+							map.SetValue("sent", 1);
 							if(IsValidClient(Client[client].Target))
 								SPrintToChat(Client[client].Target, "%s%N %ssent you a trade offer", STORE_COLOR2, client, STORE_COLOR);
 
@@ -682,7 +722,7 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 						}
 					}
 				}
-				case -2:
+				case -3:
 				{
 					if(Client[client].StoreType == Type_Trade)
 					{
@@ -697,7 +737,7 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 					TradingInv(client);
 					return;
 				}
-				case -1:
+				case -2:
 				{
 					if(Client[client].StoreType == Type_Inven)
 					{
@@ -712,17 +752,20 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 					TradingInv(client);
 					return;
 				}
+				case -1:
+				{
+				}
 				default:
 				{
-					int length = TradeList.Length-1;
-					for(int i=length; i>=0; i--)
+					StringMap map;
+					int length = TradeList.Length;
+					for(int i; i<length; i++)
 					{
-						TradeEnum trade;
-						TradeList.GetArray(i, trade, sizeof(trade));
-						if(trade.Trader==client && trade.Tradee==Client[client].Target)
+						map = TradeList.Get(i);
+						if(map.GetValue("trader", value) && value==client && map.GetValue("tradee", value) && value==Client[client].Target)
 						{
-							trade.Items[item] = 0;
-							TradeList.SetArray(i, trade);
+							map.SetValue(buffer, 0);
+							break;
 						}
 					}
 				}
@@ -753,7 +796,7 @@ public int TradingInvH(Menu menu, MenuAction action, int client, int choice)
 				}
 				case MenuCancel_ExitBack:
 				{
-					if(Client[client].RemovePos())
+					if(Client[client].RemovePos() != -1)
 					{
 						TradingInv(client);
 					}
@@ -768,9 +811,8 @@ public int TradingInvH(Menu menu, MenuAction action, int client, int choice)
 		{
 			static char buffer[MAX_NUM_LENGTH];
 			menu.GetItem(choice, buffer, MAX_NUM_LENGTH);
-			int item = StringToInt(buffer);
-			if(item)
-				Client[client].AddPos(item);
+			if(buffer[0])
+				Client[client].AddPos(StringToInt(buffer));
 
 			TradingInv(client);
 		}
@@ -784,63 +826,43 @@ public int TradingItemH(Menu panel, MenuAction action, int client, int choice)
 
 	if(IsValidClient(Client[client].Target))
 	{
-		int item = Client[client].GetPos();
 		switch(choice)
 		{
 			case 1:
 			{
-				if(Inv[client][item].Count > 0)
+				int target = choice==2 ? Client[client].Target : client;
+
+				int index = Client[client].GetPos();
+				ItemEnum item;
+				Items.GetArray(index, item);
+				if(item.Count[target] > 0)
 				{
-					int i;
+					static char buffer[MAX_NUM_LENGTH];
+					IntToString(index, buffer, sizeof(buffer));
+
+					StringMap map;
+					int i, value;
 					int length = TradeList.Length;
 					for(; i<length; i++)
 					{
-						TradeEnum trade;
-						TradeList.GetArray(i, trade, sizeof(trade));
-						if(trade.Trader!=client || trade.Tradee!=Client[client].Target)
-							continue;
+						map = TradeList.Get(i);
+						if(map.GetValue("trader", value) && value==client && map.GetValue("tradee", value) && value==Client[client].Target)
+						{
+							if(!map.GetValue(buffer, value))
+								value = 0;
 
-						trade.Items[item]--;
-						TradeList.SetArray(i, trade);
-						break;
+							map.SetValue(buffer, choice==2 ? value+1 : value-1);
+							break;
+						}
 					}
 
 					if(i == length)
 					{
-						TradeEnum trade;
-						trade.Trader = client;
-						trade.Tradee = Client[client].Target;
-						trade.Items[item] = -1;
-						TradeList.PushArray(trade);
-					}
-				}
-				Client[client].RemovePos();
-			}
-			case 2:
-			{
-				if(Inv[Client[client].Target][item].Count > 0)
-				{
-					int i;
-					int length = TradeList.Length;
-					for(; i<length; i++)
-					{
-						TradeEnum trade;
-						TradeList.GetArray(i, trade, sizeof(trade));
-						if(trade.Trader!=client || trade.Tradee!=Client[client].Target)
-							continue;
-
-						trade.Items[item]++;
-						TradeList.SetArray(i, trade);
-						break;
-					}
-
-					if(i == length)
-					{
-						TradeEnum trade;
-						trade.Trader = client;
-						trade.Tradee = Client[client].Target;
-						trade.Items[item] = 1;
-						TradeList.PushArray(trade);
+						map = new StringMap();
+						map.SetValue("trader", client);
+						map.SetValue("tradee", Client[client].Target);
+						map.SetValue(buffer, choice==2 ? 1 : -1);
+						TradeList.Push(map);
 					}
 				}
 				Client[client].RemovePos();
@@ -880,23 +902,23 @@ public int TradingExtraH(Menu menu, MenuAction action, int client, int choice)
 		{
 			static char buffer[MAX_NUM_LENGTH];
 			menu.GetItem(choice, buffer, sizeof(buffer));
-			int item = StringToInt(buffer);
-			switch(item)
+			int value = StringToInt(buffer);
+			switch(value)
 			{
 				case -2:
 				{
-					int length = TradeList.Length-1;
-					for(int i=length; i>=0; i--)
+					StringMap map;
+					int length = TradeList.Length;
+					for(int i; i<length; i++)
 					{
-						TradeEnum trade;
-						TradeList.GetArray(i, trade, sizeof(trade));
-						if(trade.Trader==client && trade.Tradee==Client[client].Target)
+						map = TradeList.Get(i);
+						if(map.GetValue("trader", value) && value==client && map.GetValue("tradee", value) && value==Client[client].Target)
 						{
+							delete map;
 							TradeList.Erase(i);
 							break;
 						}
 					}
-
 					Client[client].Target = 0;
 				}
 				case -1:
@@ -911,9 +933,9 @@ public int TradingExtraH(Menu menu, MenuAction action, int client, int choice)
 				}
 				default:
 				{
-					if(IsValidClient(item))
+					if(IsValidClient(value) && CanTradeTo(client, value))
 					{
-						Client[client].Target = item;
+						Client[client].Target = value;
 					}
 					else
 					{
@@ -921,7 +943,6 @@ public int TradingExtraH(Menu menu, MenuAction action, int client, int choice)
 					}
 				}
 			}
-
 			Trading(client);
 		}
 	}

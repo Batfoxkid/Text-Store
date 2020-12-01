@@ -1,35 +1,43 @@
 #define DATA_CRAFTING	"configs/textstore/crafting.cfg"
 
-#define ITEMCRAFT	CraftList[item].Items[i]
-#define MAXCRAFT		256
-
 enum struct CraftEnum
 {
-	bool Category;
+	int Parent;
 	int Admin;
 	char Name[MAX_ITEM_LENGTH];
-
-	bool Consume[MAXITEMS+1];
-	int Items[MAXITEMS+1];
-	int Result[MAXITEMS+1];
+	KeyValues Kv;
 }
-
-int CraftItems;
-static CraftEnum CraftList[MAXCRAFT+1];
+ArrayList Crafts;
 
 void Crafting_ConfigsExecuted()
 {
-	CraftItems = 0;
+	if(Crafts != INVALID_HANDLE)
+	{
+		CraftEnum craft;
+		int length = Crafts.Length;
+		for(int i; i<length; i++)
+		{
+			Crafts.GetArray(i, craft);
+			if(craft.Kv != INVALID_HANDLE)
+				delete craft.Kv;
+		}
+		delete Crafts;
+	}
 
 	char buffer[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, buffer, PLATFORM_MAX_PATH, DATA_CRAFTING);
 	if(!FileExists(buffer))
+	{
+		Crafts = null;
 		return;
+	}
+
+	Crafts = new ArrayList(sizeof(CraftEnum));
 
 	KeyValues kv = new KeyValues("");
 	if(kv.ImportFromFile(buffer))
 	{
-		ReadCraftCategory(kv, 0);
+		ReadCraftCategory(kv, -1);
 
 		RegConsoleCmd("sm_craft", Crafting_Command, "View list of items to craft");
 		RegConsoleCmd("sm_crafting", Crafting_Command, "View list of items to craft");
@@ -39,62 +47,33 @@ void Crafting_ConfigsExecuted()
 
 static void ReadCraftCategory(KeyValues kv, int parent)
 {
-	CraftList[parent].Category = true;
-
 	kv.GotoFirstSubKey();
 	int i;
+	char buffer[MAX_ITEM_LENGTH];
 	do
 	{
-		if(!kv.GetSectionName(CraftList[CraftItems+1].Name, sizeof(CraftList[].Name)) || !CraftList[CraftItems+1].Name[0])
+		CraftEnum craft;
+		if(!kv.GetSectionName(craft.Name, sizeof(craft.Name)) || !craft.Name[0])
 			break;
 
-		if(kv.GetNum("hidden"))
-			continue;
+		craft.Parent = parent;
 
-		CraftList[parent].Items[i] = ++CraftItems;
-		CharToUpper(CraftList[CraftItems].Name[0]);
-		int cost = kv.GetNum("cost", -999999);
-		if(cost == -999999)
+		kv.GetString("admin", buffer, sizeof(buffer));
+		craft.Admin = ReadFlagString(buffer);
+
+		if(kv.GetNum("cost", -9999) != -9999)
 		{
-			ReadCraftCategory(kv, CraftItems);
+			craft.Kv = new KeyValues(craft.Name);
+			craft.Kv.Import(kv);
+
+			Crafts.PushArray(craft);
 		}
 		else
 		{
-			CraftList[CraftItems].Items[0] = cost;
-			ReadCraftItem(kv, CraftItems);
+			craft.Kv = null;
+			ReadCraftCategory(kv, Crafts.PushArray(craft));
 		}
 		i++;
-	} while(CraftItems<MAXCRAFT && i<MAXITEMS && kv.GotoNextKey());
-	kv.GoBack();
-}
-
-static void ReadCraftItem(KeyValues kv, int item)
-{
-	CraftList[item].Category = false;
-
-	char buffer[MAX_ITEM_LENGTH];
-	kv.GetString("admin", buffer, sizeof(buffer));
-	CraftList[item].Admin = ReadFlagString(buffer);
-
-	kv.GotoFirstSubKey();
-	do
-	{
-		if(!kv.GetSectionName(buffer, sizeof(buffer)) || !buffer[0])
-			break;
-
-		int i;
-		for(i=1; i<=MaxItems; i++)
-		{
-			if(StrEqual(buffer, Item[i].Name, false))
-				break;
-		}
-
-		if(i > MaxItems)
-			continue;
-
-		CraftList[item].Items[i] = kv.GetNum("cost");
-		CraftList[item].Consume[i] = view_as<bool>(kv.GetNum("consume", 1));
-		CraftList[item].Result[i] = kv.GetNum("gain");
 	} while(kv.GotoNextKey());
 	kv.GoBack();
 }
@@ -120,32 +99,46 @@ public Action Crafting_Command(int client, int args)
 
 static void Crafting(int client)
 {
-	if(IsVoteInProgress())
-	{
-		PrintToChat(client, "[SM] %t", "Vote in Progress");
-		return;
-	}
-
+	CraftEnum craft;
 	char buffer[MAX_TITLE_LENGTH];
-	int item = Client[client].GetPos();
-	if(item == -3)
+	int primary = Client[client].GetPos();
+	if(primary == -3)
 	{
 		Menu menu = new Menu(CraftingH);
 		menu.SetTitle("Crafting: Available Recipes\n ");
-		bool items, deny;
-		for(int i=1; i<=MaxItems; i++)
+
+		ItemEnum item;
+		bool found, deny;
+		int length = Items.Length;
+		int length2 = Crafts.Length;
+		for(int i; i<length2; i++)
 		{
-			if(CraftList[i].Category || !CheckCommandAccess(client, "textstore_all", CraftList[i].Admin, true))
+			Crafts.GetArray(i, craft);
+			if(!craft.Kv || !CheckCommandAccess(client, "textstore_all", craft.Admin, true))
 				continue;
 
-			for(int a=1; a<=MaxItems; a++)
-			{
-				if(CraftList[i].Items[a]<1 || Inv[client][a].Count>=CraftList[i].Items[a])
-					continue;
+			craft.Kv.Rewind();
+			if(craft.Kv.GetNum("cost") > Client[client].Cash)
+				continue;
 
-				deny = true;
-				break;
-			}
+			craft.Kv.GotoFirstSubKey();
+			do
+			{
+				if(!craft.Kv.GetSectionName(buffer, sizeof(buffer)) || !buffer[0])
+					break;
+
+				for(int id; id<length; id++)
+				{
+					Items.GetArray(id, item);
+					if(StrEqual(buffer, item.Name, false))
+					{
+						if(craft.Kv.GetNum("cost")>item.Count[client] || (craft.Kv.GetNum("gain")>0 && !item.Kv.GetNum("stack", 1) && item.Count[client]))
+							deny = true;
+
+						break;
+					}
+				}
+			} while(!deny && craft.Kv.GotoNextKey());
 
 			if(deny)
 			{
@@ -153,13 +146,13 @@ static void Crafting(int client)
 				continue;
 			}
 
-			items = true;
+			found = true;
 			IntToString(i, buffer, sizeof(buffer));
-			menu.AddItem(buffer, CraftList[i].Name);
+			menu.AddItem(buffer, craft.Name);
 		}
 
-		if(!items)
-			menu.AddItem("0", "No Recipes", ITEMDRAW_DISABLED);
+		if(!found)
+			menu.AddItem("", "No Recipes", ITEMDRAW_DISABLED);
 
 		menu.ExitBackButton = true;
 		menu.ExitButton = true;
@@ -167,32 +160,32 @@ static void Crafting(int client)
 		return;
 	}
 
-	if(!item || CraftList[item].Category)
+	if(primary != -1)
+		Crafts.GetArray(primary, craft);
+
+	if(!craft.Kv)
 	{
 		Menu menu = new Menu(CraftingH);
-		if(item)
-		{
-			menu.SetTitle("Crafting: %s\n ", CraftList[item].Name);
-		}
-		else
+		if(primary == -1)
 		{
 			menu.SetTitle("Crafting\n \nCredits: %d\n ", Client[client].Cash);
 			menu.AddItem("-3", "Available Recipes");
 		}
-
-		bool items;
-		for(int i; i<=MaxItems; i++)
+		else
 		{
-			if(ITEMCRAFT < 1)
-				break;
-
-			items = true;
-			IntToString(ITEMCRAFT, buffer, sizeof(buffer));
-			menu.AddItem(buffer, CraftList[ITEMCRAFT].Name, CheckCommandAccess(client, "textstore_all", CraftList[ITEMCRAFT].Admin, true) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+			menu.SetTitle("Crafting: %s\n ", craft.Name);
 		}
 
-		if(!items)
-			menu.AddItem("0", "No Recipes", ITEMDRAW_DISABLED);
+		int length = Crafts.Length;
+		for(int i; i<length; i++)
+		{
+			Crafts.GetArray(i, craft);
+			if(craft.Parent != primary)
+				continue;
+
+			IntToString(i, buffer, sizeof(buffer));
+			menu.AddItem(buffer, craft.Name, CheckCommandAccess(client, "textstore_all", craft.Admin, true) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+		}
 
 		menu.ExitBackButton = true;
 		menu.ExitButton = true;
@@ -201,70 +194,104 @@ static void Crafting(int client)
 	}
 
 	Panel panel = new Panel();
-	FormatEx(buffer, sizeof(buffer), "%s\n \nCost:", CraftList[item].Name);
+	FormatEx(buffer, sizeof(buffer), "%s\n \nCost:", craft.Name);
 	panel.SetTitle(buffer);
 
+	craft.Kv.Rewind();
 	bool deny;
-	if(CraftList[item].Items[0] > 0)
+	int value = craft.Kv.GetNum("cost");	
+	if(value > 0)
 	{
-		if(Client[client].Cash < CraftList[item].Items[0])
+		if(Client[client].Cash < value)
 			deny = true;
 
-		FormatEx(buffer, sizeof(buffer), "Credits (%d/%d)", Client[client].Cash, CraftList[item].Items[0]);
+		FormatEx(buffer, sizeof(buffer), "Credits (%d/%d)", Client[client].Cash, value);
 		panel.DrawText(buffer);
 	}
 
-	for(int i=1; i<=MaxItems; i++)
+	ItemEnum item;
+	int length = Items.Length;
+	craft.Kv.GotoFirstSubKey();
+	do
 	{
-		if(CraftList[item].Items[i] < 1)
-			continue;
+		if(!craft.Kv.GetSectionName(buffer, sizeof(buffer)) || !buffer[0])
+			break;
 
-		if(!deny && Inv[client][i].Count<CraftList[item].Items[i])
-			deny = true;
+		for(int i; i<length; i++)
+		{
+			Items.GetArray(i, item);
+			if(StrEqual(buffer, item.Name, false))
+			{
+				value = craft.Kv.GetNum("cost");
+				if(value > 0)
+				{
+					if(value > item.Count[client])
+						deny = true;
 
-		if(CraftList[item].Consume[i])
-		{
-			FormatEx(buffer, sizeof(buffer), "%s (%d/%d)", Item[i].Name, Inv[client][i].Count, CraftList[item].Items[i]);
+					if(craft.Kv.GetNum("consume", 1))
+					{
+						FormatEx(buffer, sizeof(buffer), "%s (%d/%d)", item.Name, item.Count[client], value);
+					}
+					else
+					{
+						FormatEx(buffer, sizeof(buffer), "%s (%d/%d) [Tool]", item.Name, item.Count[client], value);
+					}
+					panel.DrawText(buffer);
+				}
+				break;
+			}
 		}
-		else
-		{
-			FormatEx(buffer, sizeof(buffer), "%s (%d/%d) [Tool]", Item[i].Name, Inv[client][i].Count, CraftList[item].Items[i]);
-		}
-		panel.DrawText(buffer);
-	}
+	} while(craft.Kv.GotoNextKey());
 
 	panel.DrawText(" \nResult:");
-	for(int i=1; i<=MaxItems; i++)
-	{
-		if(CraftList[item].Result[i] > 1)
-		{
-			if(Inv[client][i].Count > 0)
-			{
-				FormatEx(buffer, sizeof(buffer), "%s x%d (Own %d)", Item[i].Name, CraftList[item].Result[i], Inv[client][i].Count);
-			}
-			else
-			{
-				FormatEx(buffer, sizeof(buffer), "%s x%d", Item[i].Name, CraftList[item].Result[i]);
-			}
-		}
-		else if(CraftList[item].Result[i] > 0)
-		{
-			if(Inv[client][i].Count > 0)
-			{
-				FormatEx(buffer, sizeof(buffer), "%s (Own %d)", Item[i].Name, Inv[client][i].Count);
-			}
-			else
-			{
-				strcopy(buffer, sizeof(buffer), Item[i].Name);
-			}
-		}
-		else
-		{
-			continue;
-		}
 
-		panel.DrawText(buffer);
-	}
+	craft.Kv.GoBack();
+	craft.Kv.GotoFirstSubKey();
+	do
+	{
+		if(!craft.Kv.GetSectionName(buffer, sizeof(buffer)) || !buffer[0])
+			break;
+
+		for(int i; i<length; i++)
+		{
+			Items.GetArray(i, item);
+			if(StrEqual(buffer, item.Name, false))
+			{
+				value = craft.Kv.GetNum("gain");
+				if(value > 1)
+				{
+					if(item.Count[client] > 0)
+					{
+						FormatEx(buffer, sizeof(buffer), "%s x%d (Own %d)", item.Name, value, item.Count[client]);
+					}
+					else
+					{
+						FormatEx(buffer, sizeof(buffer), "%s x%d", item.Name, value);
+					}
+					panel.DrawText(buffer);
+				}
+				else if(value == 1)
+				{
+					if(item.Count[client] < 1)
+					{
+						panel.DrawText(item.Name);
+					}
+					else if(item.Kv.GetNum("stack", 1))
+					{
+						FormatEx(buffer, sizeof(buffer), "%s (Own %d)", item.Name, item.Count[client]);
+						panel.DrawText(buffer);
+					}
+					else
+					{
+						deny = true;
+						FormatEx(buffer, sizeof(buffer), "%s (Already Own)", item.Name);
+						panel.DrawText(buffer);
+					}
+				}
+				break;
+			}
+		}
+	} while(craft.Kv.GotoNextKey());
 
 	panel.DrawText(" ");
 	panel.DrawItem("Craft", deny ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
@@ -291,7 +318,7 @@ public int CraftingH(Menu menu, MenuAction action, int client, int choice)
 			if(choice != MenuCancel_ExitBack)
 				return;
 
-			if(Client[client].RemovePos())
+			if(Client[client].RemovePos() != -1)
 			{
 				Crafting(client);
 			}
@@ -304,9 +331,8 @@ public int CraftingH(Menu menu, MenuAction action, int client, int choice)
 		{
 			static char buffer[MAX_NUM_LENGTH];
 			menu.GetItem(choice, buffer, sizeof(buffer));
-			int item = StringToInt(buffer);
-			if(item)
-				Client[client].AddPos(item);
+			if(buffer[0])
+				Client[client].AddPos(StringToInt(buffer));
 
 			Crafting(client);
 		}
@@ -318,32 +344,64 @@ public int CraftingItemH(Menu panel, MenuAction action, int client, int choice)
 	if(action != MenuAction_Select)
 		return;
 
-	int item = Client[client].GetPos();
 	switch(choice)
 	{
 		case 1:
 		{
-			if(CraftList[item].Items[0]<1 || Client[client].Cash>=CraftList[item].Items[0])
-			{
-				bool deny;
-				for(int i=1; i<=MaxItems; i++)
-				{
-					if(CraftList[item].Items[i]<1 || Inv[client][i].Count>=CraftList[item].Items[i])
-						continue;
+			CraftEnum craft;
+			Crafts.GetArray(Client[client].GetPos(), craft);
 
-					deny = true;
-					break;
-				}
+			craft.Kv.Rewind();
+			if(craft.Kv.GetNum("cost") <= Client[client].Cash)
+			{
+				static char buffer[MAX_ITEM_LENGTH];
+
+				ItemEnum item;
+				bool deny;
+				int length = Items.Length;
+				craft.Kv.GotoFirstSubKey();
+				int[] amount = new int[length];
+				do
+				{
+					if(!craft.Kv.GetSectionName(buffer, sizeof(buffer)) || !buffer[0])
+						break;
+
+					for(int i; i<length; i++)
+					{
+						Items.GetArray(i, item);
+						if(StrEqual(buffer, item.Name, false))
+						{
+							int cost = craft.Kv.GetNum("cost");
+							if(cost < 0)
+								cost = 0;
+
+							int gain = craft.Kv.GetNum("gain");
+							if(gain < 0)
+								gain = 0;
+
+							if(cost>item.Count[client] || (gain && !item.Kv.GetNum("stack", 1) && item.Count[client]))
+							{
+								deny = true;
+							}
+							else
+							{
+								amount[i] = gain-cost;
+							}
+							break;
+						}
+					}
+				} while(!deny && craft.Kv.GotoNextKey());
 
 				if(!deny)
 				{
-					for(int i=1; i<=MaxItems; i++)
+					for(int i; i<length; i++)
 					{
-						if(CraftList[item].Items[i]>0 && CraftList[item].Consume[i])
-							Inv[client][i].Count -= CraftList[item].Items[i];
+						if(!amount[i])
+							continue;
 
-						if(CraftList[item].Result[i] > 0)
-							Inv[client][i].Count += CraftList[item].Result[i];
+						Items.GetArray(i, item);
+						item.Count[client] += amount[i];
+						Items.SetArray(i, item);
 					}
 				}
 			}
