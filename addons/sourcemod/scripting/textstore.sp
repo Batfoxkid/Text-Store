@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.0.1"
+#define PLUGIN_VERSION	"1.0.2"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DESC_LENGTH	256

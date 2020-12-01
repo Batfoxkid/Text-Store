@@ -23,11 +23,10 @@ void Trading_Disconnect(int client)
 {
 	Client[client].CanTrade = false;
 
-	StringMap map;
 	int length = TradeList.Length;
 	for(int i; i<length; i++)
 	{
-		map = TradeList.Get(i);
+		StringMap map = TradeList.Get(i);
 
 		int value;
 		if(map.GetValue("trader", value) && value!=client && map.GetValue("tradee", value) && value!=client)
@@ -50,78 +49,95 @@ Action Trading_SayCommand(int client, const char[] buffer)
 			{
 				if(IsCharNumeric(buffer[0]) || buffer[0]=='-')
 				{
-					StringMap map;
-					int length = TradeList.Length;
-					for(int i; i<length; i++)
+					int amount = StringToInt(buffer);
+					if(amount > 0)
 					{
-						map = TradeList.Get(i);
+						if(Client[Client[client].Target].Cash < amount)
+							amount = Client[Client[client].Target].Cash;
+					}
+					else if(amount < 0)
+					{
+						if(Client[client].Cash < -amount)
+							amount = -Client[client].Cash;
+					}
 
-						int value;
+					int i, value;
+					int length = TradeList.Length;
+					for(; i<length; i++)
+					{
+						StringMap map = TradeList.Get(i);
 						if(!map.GetValue("trader", value) || value!=client || !map.GetValue("tradee", value) || value!=Client[client].Target)
 							continue;
 
-						if(map.GetValue("sent", value))
-							break;
+						if(!map.GetValue("sent", value) || !value)
+							map.SetValue("cash", amount);
 
-						value = StringToInt(buffer);
-						if(value > 0)
-						{
-							if(Client[Client[client].Target].Cash < value)
-								value = Client[Client[client].Target].Cash;
-						}
-						else if(value < 0)
-						{
-							if(Client[client].Cash < -value)
-								value = Client[client].Cash;
-						}
-
-						map.SetValue("cash", value);
-						Trading(client);
-						return Plugin_Handled;
+						break;
 					}
+
+					if(i == length)
+					{
+						StringMap map = new StringMap();
+						map.SetValue("trader", client);
+						map.SetValue("tradee", Client[client].Target);
+						map.SetValue("cash", amount);
+						TradeList.Push(map);
+					}
+
+					Trading(client);
+					return Plugin_Handled;
 				}
 			}
 			case Type_TradeItem:
 			{
 				if(IsCharNumeric(buffer[0]) || buffer[0]=='-')
 				{
-					StringMap map;
-					int length = TradeList.Length;
-					for(int i; i<length; i++)
+					int value = Client[client].GetPos();
+					if(value != -1)
 					{
-						map = TradeList.Get(i);
+						ItemEnum item;
+						Items.GetArray(value, item);
 
-						int value;
-						if(!map.GetValue("trader", value) || value!=client || !map.GetValue("tradee", value) || value!=Client[client].Target)
-							continue;
+						static char num[MAX_NUM_LENGTH];
+						IntToString(value, num, sizeof(num));
 
-						if(!map.GetValue("sent", value))
+						int amount = StringToInt(buffer);
+						if(amount > 0)
 						{
-							int index = Client[client].GetPos();
-							if(index == -1)
-							{
-								ItemEnum item;
-								Items.GetArray(index, item);
-								value = StringToInt(buffer);
-								if(value > 0)
-								{
-									if(item.Count[Client[client].Target] < value)
-										value = item.Count[Client[client].Target];
-								}
-								else if(value < 0)
-								{
-									if(item.Count[client] < -value)
-										value = -item.Count[client];
-								}
-
-								static char num[MAX_NUM_LENGTH];
-								IntToString(index, num, sizeof(num));
-								map.SetValue(num, value);
-								Trading(client);
-								return Plugin_Handled;
-							}
+							if(item.Count[Client[client].Target] < amount)
+								amount = item.Count[Client[client].Target];
 						}
-						break;
+						else if(amount < 0)
+						{
+							if(item.Count[client] < -amount)
+								amount = -item.Count[client];
+						}
+
+						int i;
+						int length = TradeList.Length;
+						for(; i<length; i++)
+						{
+							StringMap map = TradeList.Get(i);
+							if(!map.GetValue("trader", value) || value!=client || !map.GetValue("tradee", value) || value!=Client[client].Target)
+								continue;
+
+							if(!map.GetValue("sent", value) || !value)
+								map.SetValue(num, amount);
+
+							break;
+						}
+
+						if(i == length)
+						{
+							StringMap map = new StringMap();
+							map.SetValue("trader", client);
+							map.SetValue("tradee", Client[client].Target);
+							map.SetValue(num, amount);
+							TradeList.Push(map);
+						}
+
+						Trading(client);
+						return Plugin_Handled;
 					}
 				}
 			}
@@ -146,7 +162,6 @@ public Action Trading_Command(int client, int args)
 static void Trading(int client)
 {
 	int value;
-	StringMap map;
 	char buffer[MAX_TITLE_LENGTH];
 	static char buffer2[MAX_NUM_LENGTH];
 	if(!IsValidClient(Client[client].Target) || !CanTradeTo(client, Client[client].Target))
@@ -160,8 +175,7 @@ static void Trading(int client)
 		int length = TradeList.Length;
 		for(int i; i<length; i++)
 		{
-			map = TradeList.Get(i);
-
+			StringMap map = TradeList.Get(i);
 			bool sent = map.GetValue("sent", value);
 			if(sent && map.GetValue("tradee", value) && value==client)
 			{
@@ -216,8 +230,7 @@ static void Trading(int client)
 	int length = TradeList.Length;
 	for(int i; i<length; i++)
 	{
-		map = TradeList.Get(i);
-
+		StringMap map = TradeList.Get(i);
 		if(map.GetValue("trader", trader) && trader==client)
 		{
 			int worth;
@@ -234,13 +247,15 @@ static void Trading(int client)
 				return;
 			}
 
+			Client[client].ChatType = Type_TradeCash;
+
 			Menu menu = new Menu(TradingH);
 
 			bool found;
 			if(map.GetValue("cash", worth) && worth)
 			{
 				found = true;
-				FormatEx(buffer, sizeof(buffer), "[%s] Credits x%d%s", worth ? worth>0 ? "+" : "-" : " ", abs(worth));
+				FormatEx(buffer, sizeof(buffer), "[%s] Credits x%d", worth ? worth>0 ? "+" : "-" : " ", abs(worth));
 			}
 			else
 			{
@@ -297,8 +312,6 @@ static void Trading(int client)
 		{
 			if(trader != Client[client].Target)
 				continue;
-
-			Client[client].ChatType = Type_TradeCash;
 
 			Menu menu = new Menu(TradingH);
 
@@ -601,11 +614,10 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 			{
 				case -6:
 				{
-					StringMap map;
 					int length = TradeList.Length;
 					for(int i; i<length; i++)
 					{
-						map = TradeList.Get(i);
+						StringMap map = TradeList.Get(i);
 						if(map.GetValue("tradee", value) && value==client && map.GetValue("trader", value) && value==Client[client].Target)
 						{
 							if(IsValidClient(Client[client].Target))
@@ -687,11 +699,10 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 				}
 				case -5:
 				{
-					StringMap map;
 					int length = TradeList.Length;
 					for(int i; i<length; i++)
 					{
-						map = TradeList.Get(i);
+						StringMap map = TradeList.Get(i);
 						if(map.GetValue("tradee", value) && value==client && map.GetValue("trader", value) && value==Client[client].Target)
 						{
 							if(IsValidClient(Client[client].Target))
@@ -706,11 +717,10 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 				}
 				case -4:
 				{
-					StringMap map;
 					int length = TradeList.Length;
 					for(int i; i<length; i++)
 					{
-						map = TradeList.Get(i);
+						StringMap map = TradeList.Get(i);
 						if(map.GetValue("trader", value) && value==client && map.GetValue("tradee", value) && value==Client[client].Target)
 						{
 							map.SetValue("sent", 1);
@@ -757,11 +767,10 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 				}
 				default:
 				{
-					StringMap map;
 					int length = TradeList.Length;
 					for(int i; i<length; i++)
 					{
-						map = TradeList.Get(i);
+						StringMap map = TradeList.Get(i);
 						if(map.GetValue("trader", value) && value==client && map.GetValue("tradee", value) && value==Client[client].Target)
 						{
 							map.SetValue(buffer, 0);
@@ -840,12 +849,11 @@ public int TradingItemH(Menu panel, MenuAction action, int client, int choice)
 					static char buffer[MAX_NUM_LENGTH];
 					IntToString(index, buffer, sizeof(buffer));
 
-					StringMap map;
 					int i, value;
 					int length = TradeList.Length;
 					for(; i<length; i++)
 					{
-						map = TradeList.Get(i);
+						StringMap map = TradeList.Get(i);
 						if(map.GetValue("trader", value) && value==client && map.GetValue("tradee", value) && value==Client[client].Target)
 						{
 							if(!map.GetValue(buffer, value))
@@ -858,7 +866,7 @@ public int TradingItemH(Menu panel, MenuAction action, int client, int choice)
 
 					if(i == length)
 					{
-						map = new StringMap();
+						StringMap map = new StringMap();
 						map.SetValue("trader", client);
 						map.SetValue("tradee", Client[client].Target);
 						map.SetValue(buffer, choice==2 ? 1 : -1);
@@ -907,11 +915,10 @@ public int TradingExtraH(Menu menu, MenuAction action, int client, int choice)
 			{
 				case -2:
 				{
-					StringMap map;
 					int length = TradeList.Length;
 					for(int i; i<length; i++)
 					{
-						map = TradeList.Get(i);
+						StringMap map = TradeList.Get(i);
 						if(map.GetValue("trader", value) && value==client && map.GetValue("tradee", value) && value==Client[client].Target)
 						{
 							delete map;
