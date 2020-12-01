@@ -18,7 +18,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"0.3.1"
+#define PLUGIN_VERSION	"0.4.0"
 
 #define MAXITEMS	256
 

@@ -1,14 +1,14 @@
 #define ITEM_VOTE	"voting"
 
 char VoteCommand[512];
-bool VoteDone[257];
+ArrayList VoteDone;
 int VoteCaster;
 int VoteIndex;
 float VoteMap;
 
 public ItemResult Vote_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
 {
-	if(VoteDone[index])
+	if(VoteDone!=INVALID_HANDLE && VoteDone.FindValue(index)!=-1)
 	{
 		SPrintToChat(client, "This has already been casted before!");
 		return Item_None;
@@ -25,7 +25,15 @@ public ItemResult Vote_Use(int client, bool equipped, KeyValues item, int index,
 
 	VoteCaster = GetClientUserId(client);
 	VoteIndex = index;
-	VoteDone[index] = item.GetNum("once") ? true : false;
+
+	if(item.GetNum("once"))
+	{
+		if(VoteDone == INVALID_HANDLE)
+			VoteDone = new ArrayList();
+
+		VoteDone.Push(index);
+	}
+
 	VoteMap = item.GetFloat("maptime");
 
 	Menu menu = CreateMenu(Vote_UseH, view_as<MenuAction>(MENU_ACTIONS_ALL));

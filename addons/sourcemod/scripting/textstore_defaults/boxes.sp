@@ -10,7 +10,7 @@ stock ItemResult Boxes_Use(int client, bool equipped, KeyValues item, int index,
 	if(buffer[0])
 	{
 		bool found;
-		for(keyUsed=1; keyUsed<=maxItems; keyUsed++)
+		for(; keyUsed<maxItems; keyUsed++)
 		{
 			if(!TextStore_GetItemName(keyUsed, buffer2, sizeof(buffer2)) || !StrEqual(buffer, buffer2, false))
 				continue;
@@ -30,7 +30,7 @@ stock ItemResult Boxes_Use(int client, bool equipped, KeyValues item, int index,
 	char[][] names = new char[maxItems][sizeof(buffer)];
 	for(int i; i<maxItems; i++)
 	{
-		TextStore_GetItemName(i+1, names[i], sizeof(buffer));
+		TextStore_GetItemName(i, names[i], sizeof(buffer));
 	}
 
 	ArrayList list = new ArrayList(sizeof(buffer));
@@ -71,7 +71,6 @@ stock ItemResult Boxes_Use(int client, bool equipped, KeyValues item, int index,
 		maxItems = list.Get(GetRandomInt(0, length-1));
 		SPrintToChatAll("%s%N %sunboxed %s%s", STORE_COLOR2, client, STORE_COLOR, STORE_COLOR2, names[maxItems]);
 
-		maxItems++;
 		TextStore_GetInv(client, maxItems, amount);
 		TextStore_SetInv(client, maxItems, amount+1);
 		if(keyUsed)
