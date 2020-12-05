@@ -132,9 +132,16 @@ static void Crafting(int client)
 					Items.GetArray(id, item);
 					if(StrEqual(buffer, item.Name, false))
 					{
-						if(craft.Kv.GetNum("cost")>item.Count[client] || (craft.Kv.GetNum("gain")>0 && !item.Kv.GetNum("stack", 1) && item.Count[client]))
+						if(craft.Kv.GetNum("cost") > item.Count[client])
+						{
 							deny = true;
-
+						}
+						else if(craft.Kv.GetNum("gain")>0 && item.Count[client])
+						{
+							item.Kv.Rewind();
+							if(!item.Kv.GetNum("stack", 1))
+								deny = true;
+						}
 						break;
 					}
 				}
@@ -276,16 +283,20 @@ static void Crafting(int client)
 					{
 						panel.DrawText(item.Name);
 					}
-					else if(item.Kv.GetNum("stack", 1))
-					{
-						FormatEx(buffer, sizeof(buffer), "%s (Own %d)", item.Name, item.Count[client]);
-						panel.DrawText(buffer);
-					}
 					else
 					{
-						deny = true;
-						FormatEx(buffer, sizeof(buffer), "%s (Already Own)", item.Name);
-						panel.DrawText(buffer);
+						item.Kv.Rewind();
+						if(item.Kv.GetNum("stack", 1))
+						{
+							FormatEx(buffer, sizeof(buffer), "%s (Own %d)", item.Name, item.Count[client]);
+							panel.DrawText(buffer);
+						}
+						else
+						{
+							deny = true;
+							FormatEx(buffer, sizeof(buffer), "%s (Already Own)", item.Name);
+							panel.DrawText(buffer);
+						}
 					}
 				}
 				break;
@@ -379,14 +390,20 @@ public int CraftingItemH(Menu panel, MenuAction action, int client, int choice)
 							if(gain < 0)
 								gain = 0;
 
-							if(cost>item.Count[client] || (gain && !item.Kv.GetNum("stack", 1) && item.Count[client]))
+							if(cost > item.Count[client])
 							{
 								deny = true;
 							}
-							else
+							else if(gain>0 && item.Count[client])
 							{
-								amount[i] = gain-cost;
+								item.Kv.Rewind();
+								if(!item.Kv.GetNum("stack", 1))
+									deny = true;
 							}
+
+							if(!deny)
+								amount[i] = gain-cost;
+
 							break;
 						}
 					}

@@ -120,6 +120,9 @@ public any Native_GetItemKv(Handle plugin, int numParams)
 
 	ItemEnum item;
 	Items.GetArray(index, item);
+	if(item.Kv)
+		item.Kv.Rewind();
+
 	return item.Kv;
 }
 

@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.0.2"
+#define PLUGIN_VERSION	"1.0.3"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DESC_LENGTH	256
@@ -881,6 +881,7 @@ void ViewItem(int client, ItemEnum item)
 	FormatEx(buffer, sizeof(buffer), "%s\n ", item.Name);
 	panel.SetTitle(buffer);
 
+	item.Kv.Rewind();
 	item.Kv.GetString("desc", buffer, sizeof(buffer), "No Description");
 	ReplaceString(buffer, sizeof(buffer), "\\n", "\n");
 	panel.DrawText(buffer);
@@ -941,6 +942,7 @@ public int ViewItemH(Menu panel, MenuAction action, int client, int choice)
 	int index = Client[client].GetPos();
 	ItemEnum item;
 	Items.GetArray(index, item);
+	item.Kv.Rewind();
 	switch(choice)
 	{
 		case 1:

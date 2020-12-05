@@ -284,6 +284,7 @@ static void Trading(int client)
 					FormatEx(buffer, sizeof(buffer), "[%s] %s", pos ? "+" : "-", item.Name);
 				}
 
+				item.Kv.Rewind();
 				int sell = item.Kv.GetNum("sell", RoundFloat(item.Kv.GetNum("cost")*SELLRATIO));
 				if(sell > 0)
 				{
@@ -341,10 +342,10 @@ static void Trading(int client)
 			ItemEnum item;
 			bool unsellable;
 			length = Items.Length;
-			for(i=0; i<length; i++)
+			for(int a; a<length; a++)
 			{
-				Items.GetArray(i, item);
-				IntToString(i, buffer2, sizeof(buffer2));
+				Items.GetArray(a, item);
+				IntToString(a, buffer2, sizeof(buffer2));
 				if(!map.GetValue(buffer2, value) || !value)
 					continue;
 
@@ -386,6 +387,7 @@ static void Trading(int client)
 					return;
 				}
 
+				item.Kv.Rewind();
 				int sell = item.Kv.GetNum("sell", RoundFloat(item.Kv.GetNum("cost")*SELLRATIO));
 				if(sell > 0)
 				{
@@ -456,8 +458,18 @@ static void TradingInv(int client)
 		for(int i; i<length; i++)
 		{
 			Items.GetArray(i, item);
-			if(item.Parent!=primary || (item.Kv && (item.Count[target]<1 || !item.Kv.GetNum("trade", 1))))
+			if(item.Parent != primary)
 				continue;
+
+			if(item.Kv)
+			{
+				if(item.Count[target] < 1)
+					continue;
+
+				item.Kv.Rewind();
+				if(!item.Kv.GetNum("trade", 1))
+					continue;
+			}
 
 			static char buffer[MAX_NUM_LENGTH];
 			IntToString(i, buffer, sizeof(buffer));
@@ -481,6 +493,7 @@ static void TradingInv(int client)
 	FormatEx(buffer, sizeof(buffer), "%s\n ", item.Name);
 	panel.SetTitle(buffer);
 
+	item.Kv.Rewind();
 	item.Kv.GetString("desc", buffer, sizeof(buffer), "No Description");
 	ReplaceString(buffer, sizeof(buffer), "\\n", "\n");
 	panel.DrawText(buffer);
@@ -646,22 +659,22 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 								ItemEnum item;
 								length = Items.Length;
 								int[] items = new int[length];
-								for(i=0; i<length; i++)
+								for(int a; a<length; a++)
 								{
-									Items.GetArray(i, item);
-									IntToString(i, buffer, sizeof(buffer));
-									if(!map.GetValue(buffer, items[i]) || !items[i])
+									Items.GetArray(a, item);
+									IntToString(a, buffer, sizeof(buffer));
+									if(!map.GetValue(buffer, items[a]) || !items[a])
 										continue;
 
-									if(items[i] > 0)
+									if(items[a] > 0)
 									{
-										if(item.Count[client] < items[i])
+										if(item.Count[client] < items[a])
 										{
 											missing = true;
 											break;
 										}
 									}
-									else if(item.Count[Client[client].Target] < -items[i])
+									else if(item.Count[Client[client].Target] < -items[a])
 									{
 										missing = true;
 										break;
@@ -676,15 +689,15 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 								{
 									Client[client].Cash -= value;
 									Client[Client[client].Target].Cash += value;
-									for(i=0; i<length; i++)
+									for(int a; a<length; a++)
 									{
-										if(!items[i])
+										if(!items[a])
 											continue;
 
-										Items.GetArray(i, item);
-										item.Count[client] -= items[i];
-										item.Count[Client[client].Target] += items[i];
-										Items.SetArray(i, item);
+										Items.GetArray(a, item);
+										item.Count[client] -= items[a];
+										item.Count[Client[client].Target] += items[a];
+										Items.SetArray(a, item);
 									}
 									SPrintToChat(Client[client].Target, "%s%N %saccepted your trade offer", STORE_COLOR2, client, STORE_COLOR);
 								}
