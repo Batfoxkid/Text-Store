@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.0.3"
+#define PLUGIN_VERSION	"1.0.4"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DESC_LENGTH	256
@@ -289,24 +289,23 @@ public void OnConfigsExecuted()
 
 	for(int i=1; i<=MaxClients; i++)
 	{
-		if(!IsValidClient(i))
-			continue;
-
-		OnClientPostAdminCheck(i);
-		if(AreClientCookiesCached(i))
-			Trading_CookiesCached(i);
+		if(IsValidClient(i))
+			OnClientPostAdminCheck(i);
 	}
 }
 
 public void OnClientCookiesCached(int client)
 {
-	Trading_CookiesCached(client);
+	if(Client[client].Ready)
+		Trading_CookiesCached(client);
 }
 
 public void OnClientPostAdminCheck(int client)
 {
 	Client[client] = Client[0];
 	Client[client].Setup(client);
+	if(AreClientCookiesCached(client))
+		Trading_CookiesCached(client);
 }
 
 public void OnClientDisconnect(int client)

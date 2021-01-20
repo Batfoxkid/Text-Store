@@ -28,8 +28,9 @@ stock ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, c
 	{
 		if(CheckCommandAccess(client, "textstore_dev", ADMFLAG_RCON))
 		{
-			item.GetString("plugin", buffer, sizeof(buffer));
-			SPrintToChat(client, "%s can't find Freak Fortress 2 natives!", buffer);
+			char buffer2[256];
+			item.GetString("plugin", buffer2, sizeof(buffer2));
+			SPrintToChat(client, "%s can't find Freak Fortress 2 natives!", buffer2);
 		}
 		else
 		{

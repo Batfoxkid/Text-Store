@@ -18,31 +18,15 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"0.4.0"
-
-#define MAXITEMS	256
+#define PLUGIN_VERSION	"0.5.0"
 
 #define FAR_FUTURE		100000000.0
-#define MAX_SOUND_LENGTH		80
-#define MAX_MODEL_LENGTH		128
 #define MAX_MATERIAL_LENGTH	128
-#define MAX_ENTITY_LENGTH		48
-#define MAX_EFFECT_LENGTH		48
-#define MAX_ATTACHMENT_LENGTH	48
-#define MAX_ICON_LENGTH		48
-#define MAX_INFO_LENGTH		128
-#define HEX_OR_DEC_LENGTH		12
-#define MAX_ATTRIBUTE_LENGTH	256
-#define MAX_CONDITION_LENGTH	256
 #define MAX_CLASSNAME_LENGTH	64
-#define MAX_COOKIE_BYTE		6
-#define MAX_COOKIE_BYTES		42
-#define MAX_COOKIE_LENGTH		((MAX_COOKIE_BYTE+1)*MAX_COOKIE_BYTES)
 #define MAX_ITEM_LENGTH		48
 #define MAX_DESC_LENGTH		256
 #define MAX_TITLE_LENGTH		192
 #define MAX_NUM_LENGTH		5
-#define VOID_ARG			-1
 
 EngineVersion GameType = Engine_Unknown;
 
@@ -140,6 +124,7 @@ stock void GetClassesFromString(const char[] buffer, bool classes[view_as<int>(T
 #tryinclude "textstore_defaults/boxes.sp"
 #tryinclude "textstore_defaults/chat.sp"
 #tryinclude "textstore_defaults/command.sp"
+#tryinclude "textstore_defaults/multi.sp"
 #tryinclude "textstore_defaults/trails.sp"
 #tryinclude "textstore_defaults/tvip.sp"
 #tryinclude "textstore_defaults/voting.sp"
@@ -166,6 +151,11 @@ public ItemResult TextStore_Item(int client, bool equipped, KeyValues item, int 
 	#if defined ITEM_COMMAND
 	if(StrEqual(buffer, ITEM_COMMAND))
 		return Command_Use(client, equipped, item, index, name, count);
+	#endif
+
+	#if defined ITEM_MULTI
+	if(StrEqual(buffer, ITEM_MULTI))
+		return Multi_Use(client, equipped, item, index, name, count);
 	#endif
 
 	#if defined ITEM_TRAIL

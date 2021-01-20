@@ -13,7 +13,7 @@ public ItemResult tVip_Use(int client, bool equipped, KeyValues item, int index,
 	{
 		if(CheckCommandAccess(client, "textstore_dev", ADMFLAG_RCON))
 		{
-			char buffer[64];
+			char buffer[256];
 			item.GetString("plugin", buffer, sizeof(buffer));
 			SPrintToChat(client, "%s can't find tVip natives!", buffer);
 		}

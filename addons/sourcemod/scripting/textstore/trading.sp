@@ -164,7 +164,7 @@ static void Trading(int client)
 	int value;
 	char buffer[MAX_TITLE_LENGTH];
 	static char buffer2[MAX_NUM_LENGTH];
-	if(!IsValidClient(Client[client].Target) || !CanTradeTo(client, Client[client].Target))
+	if(!IsValidClient(Client[client].Target))
 	{
 		Menu menu = new Menu(TradingExtraH);
 		menu.SetTitle("Trading\n \nCredits: %d\n ", Client[client].Cash);
@@ -953,7 +953,7 @@ public int TradingExtraH(Menu menu, MenuAction action, int client, int choice)
 				}
 				default:
 				{
-					if(IsValidClient(value) && CanTradeTo(client, value))
+					if(IsValidClient(value))
 					{
 						Client[client].Target = value;
 					}

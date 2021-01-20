@@ -144,8 +144,8 @@ static void Trail_Remove(int client)
 static void Trail_Attach(int entity, int client)
 {
 	static float org[3], ang[3];
-	static float temp[3] = {0.0, 90.0, 0.0};
-	static float pos[3] = {0.0, 0.0, 5.0};
+	static const float temp[3] = {0.0, 90.0, 0.0};
+	static const float pos[3] = {0.0, 0.0, 5.0};
 	GetEntPropVector(client, Prop_Data, "m_angAbsRotation", ang);
 	SetEntPropVector(client, Prop_Data, "m_angAbsRotation", temp);
 	GetClientAbsOrigin(client, org);

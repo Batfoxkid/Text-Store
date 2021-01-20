@@ -4,19 +4,29 @@ stock ItemResult Boxes_Use(int client, bool equipped, KeyValues item, int index,
 {
 	int maxItems = TextStore_GetItems();
 
-	int keyUsed, amount;
-	static char buffer[64], buffer2[64];
+	char[][] names = new char[maxItems][MAX_ITEM_LENGTH];
+	for(int i; i<maxItems; i++)
+	{
+		TextStore_GetItemName(i, names[i], MAX_ITEM_LENGTH);
+	}
+
+	int amount;
+	static char buffer[MAX_ITEM_LENGTH];
 	item.GetString("locked", buffer, sizeof(buffer));
 	if(buffer[0])
 	{
 		bool found;
-		for(; keyUsed<maxItems; keyUsed++)
+		for(int i; i<maxItems; i++)
 		{
-			if(!TextStore_GetItemName(keyUsed, buffer2, sizeof(buffer2)) || !StrEqual(buffer, buffer2, false))
+			if(!StrEqual(buffer, names[i], false))
 				continue;
 
-			TextStore_GetInv(client, keyUsed, amount);
-			found = amount>0;
+			TextStore_GetInv(client, i, amount);
+			if(amount > 0)
+			{
+				TextStore_SetInv(client, i, amount-1);
+				found = true;
+			}
 			break;
 		}
 
@@ -27,18 +37,46 @@ stock ItemResult Boxes_Use(int client, bool equipped, KeyValues item, int index,
 		}
 	}
 
-	char[][] names = new char[maxItems][sizeof(buffer)];
-	for(int i; i<maxItems; i++)
-	{
-		TextStore_GetItemName(i, names[i], sizeof(buffer));
-	}
-
-	ArrayList list = new ArrayList(sizeof(buffer));
+	ArrayList list = new ArrayList();
+	ArrayList bonus = new ArrayList();
 	if(item.GotoFirstSubKey())
 	{
 		item.GetSectionName(buffer, sizeof(buffer));
 		do
 		{
+			static char buffer2[MAX_NUM_LENGTH];
+			if(StrContains(buffer, ".") != -1)
+			{
+				float chance = StringToFloat(buffer);
+				if(chance >= GetRandomFloat())
+				{
+					ArrayList current = new ArrayList();
+					for(int i=1; ; i++)
+					{
+						IntToString(i, buffer2, sizeof(buffer2));
+						item.GetString(buffer2, buffer, sizeof(buffer));
+						if(!buffer[0])
+							break;
+
+						for(amount=0; amount<maxItems; amount++)
+						{
+							if(!StrEqual(buffer, names[amount], false))
+								continue;
+
+							current.Push(amount);
+							break;
+						}
+					}
+
+					amount = current.Length;
+					if(amount)
+						bonus.Push(current.Get(GetRandomInt(0, amount-1)));
+
+					delete current;
+				}
+				continue;
+			}
+
 			int chance = StringToInt(buffer);
 			if(chance < 1)
 				continue;
@@ -55,7 +93,7 @@ stock ItemResult Boxes_Use(int client, bool equipped, KeyValues item, int index,
 					if(!StrEqual(buffer, names[a], false))
 						continue;
 
-					for(int b; b<chance; b++)
+					for(amount=0; amount<chance; amount++)
 					{
 						list.Push(a);
 					}
@@ -73,12 +111,22 @@ stock ItemResult Boxes_Use(int client, bool equipped, KeyValues item, int index,
 
 		TextStore_GetInv(client, maxItems, amount);
 		TextStore_SetInv(client, maxItems, amount+1);
-		if(keyUsed)
+	}
+
+	length = bonus.Length;
+	if(length)
+	{
+		for(int i; i<length; i++)
 		{
-			TextStore_GetInv(client, keyUsed, amount);
-			TextStore_SetInv(client, keyUsed, amount-1);
+			maxItems = bonus.Get(i);
+			SPrintToChat(client, "You unboxed %s%s", STORE_COLOR2, names[maxItems]);
+
+			TextStore_GetInv(client, maxItems, amount);
+			TextStore_SetInv(client, maxItems, amount+1);
 		}
 	}
+
 	delete list;
-	return length ? Item_Used : Item_None;
+	delete bonus;
+	return Item_Used;
 }
