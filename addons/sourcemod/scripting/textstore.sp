@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.0.4"
+#define PLUGIN_VERSION	"1.0.5"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DESC_LENGTH	256
@@ -552,44 +552,71 @@ void Store(int client)
 
 void Inventory(int client)
 {
+	bool found;
+	Menu menu;
 	ItemEnum item;
+	static char buffer[MAX_NUM_LENGTH];
 	int primary = Client[client].GetPos();
-	if(primary != -1)
+	if(primary == -3)
 	{
-		Items.GetArray(primary, item);
-		if(item.Kv)
-		{
-			ViewItem(client, item);
-			return;
-		}
-	}
+		menu = new Menu(GeneralMenuH);
+		menu.SetTitle("Inventory: All Items\n ");
 
-	Menu menu = new Menu(GeneralMenuH);
-	if(primary == -1)
-	{
-		menu.SetTitle("Inventory\n \nCredits: %d\n ", Client[client].Cash);
+		int length = Items.Length;
+		for(int i; i<length; i++)
+		{
+			Items.GetArray(i, item);
+			if(!item.Kv || item.Count[client]<1)
+				continue;
+
+			IntToString(i, buffer, sizeof(buffer));
+			menu.AddItem(buffer, item.Name);
+			found = true;
+		}
 	}
 	else
 	{
-		menu.SetTitle("Inventory: %s\n ", item.Name);
+		if(primary != -1)
+		{
+			Items.GetArray(primary, item);
+			if(item.Kv)
+			{
+				ViewItem(client, item);
+				return;
+			}
+		}
+
+		menu = new Menu(GeneralMenuH);
+		if(primary == -1)
+		{
+			menu.SetTitle("Inventory\n \nCredits: %d\n ", Client[client].Cash);
+		}
+		else
+		{
+			menu.SetTitle("Inventory: %s\n ", item.Name);
+		}
+
+		int length = Items.Length;
+		for(int i; i<length; i++)
+		{
+			Items.GetArray(i, item);
+			if(item.Parent!=primary || (item.Kv && item.Count[client]<1))
+				continue;
+
+			IntToString(i, buffer, sizeof(buffer));
+			menu.AddItem(buffer, item.Name);
+			found = true;
+		}
 	}
 
-	bool found;
-	int length = Items.Length;
-	for(int i; i<length; i++)
+	if(primary == -1)
 	{
-		Items.GetArray(i, item);
-		if(item.Parent!=primary || (item.Kv && item.Count[client]<1))
-			continue;
-
-		static char buffer[MAX_NUM_LENGTH];
-		IntToString(i, buffer, sizeof(buffer));
-		menu.AddItem(buffer, item.Name);
-		found = true;
+		menu.AddItem("-3", "All Items");
 	}
-
-	if(!found)
+	else if(!found)
+	{
 		menu.AddItem("-1", "No Items", ITEMDRAW_DISABLED);
+	}
 
 	menu.ExitBackButton = true;
 	menu.ExitButton = true;
