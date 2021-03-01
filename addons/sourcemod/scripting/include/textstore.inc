@@ -97,6 +97,30 @@ native KeyValues TextStore_GetItemKv(int item);
 native int TextStore_GetItemName(int item, char[] buffer, int length);
 
 /**
+ * Gets data of a unique item
+ *
+ * @param item		Item index
+ * @param buffer	String to write to
+ * @param count		Size of the string
+ *
+ * @return		Number of bytes written
+ */
+native int TextStore_GetItemData(int item, char[] buffer, int length);
+
+/**
+ * Creates a unique variant of an item
+ *
+ * @param client	Client index
+ * @param item		Base item index
+ * @param data		Item data string
+ * @param name		Custom item name
+ * @param equipped	If given equipped
+ *
+ * @return		Given item index
+ */
+native int TextStore_CreateUniqueItem(int client, int item, const char[] data, const char[] name="", bool equipped=false);
+
+/**
  * Called when a client is about to be sold
  *
  * @param client	Client index
@@ -108,6 +132,17 @@ native int TextStore_GetItemName(int item, char[] buffer, int length);
  * @return		Plugin_Changed to change values, Plugin_Handled/Plugin_Stop to prevent the sell
  */
 forward Action TextStore_OnSellItem(int client, int item, int cash, int &count, int &sell);
+
+/**
+ * Called when a description of an item is about to be shown
+ *
+ * @param client	Client index
+ * @param item		Item index
+ * @param desc		Description of the item
+ *
+ * @noreturn
+ */
+forward void TextStore_OnDescItem(int client, int item, char[] desc);
 
 /**
  * Called to a given plugin when a item is used
@@ -186,5 +221,7 @@ public void __pl_TextStore_SetNTVOptional()
 	MarkNativeAsOptional("TextStore_ClientReload");
 	MarkNativeAsOptional("TextStore_GetItems");
 	MarkNativeAsOptional("TextStore_GetItemName");
+	MarkNativeAsOptional("TextStore_GetItemData");
+	MarkNativeAsOptional("TextStore_CreateUniqueItem");
 }
 #endif

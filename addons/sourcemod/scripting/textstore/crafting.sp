@@ -37,7 +37,7 @@ void Crafting_ConfigsExecuted()
 	KeyValues kv = new KeyValues("");
 	if(kv.ImportFromFile(buffer))
 	{
-		ReadCraftCategory(kv, -1);
+		ReadCraftCategory(kv, POS_NONE);
 
 		RegConsoleCmd("sm_craft", Crafting_Command, "View list of items to craft");
 		RegConsoleCmd("sm_crafting", Crafting_Command, "View list of items to craft");
@@ -102,7 +102,7 @@ static void Crafting(int client)
 	CraftEnum craft;
 	char buffer[MAX_TITLE_LENGTH];
 	int primary = Client[client].GetPos();
-	if(primary == -3)
+	if(primary == POS_ALLITEM)
 	{
 		Menu menu = new Menu(CraftingH);
 		menu.SetTitle("Crafting: Available Recipes\n ");
@@ -167,16 +167,18 @@ static void Crafting(int client)
 		return;
 	}
 
-	if(primary != -1)
+	if(primary != POS_NONE)
 		Crafts.GetArray(primary, craft);
 
 	if(!craft.Kv)
 	{
 		Menu menu = new Menu(CraftingH);
-		if(primary == -1)
+		if(primary == POS_NONE)
 		{
 			menu.SetTitle("Crafting\n \nCredits: %d\n ", Client[client].Cash);
-			menu.AddItem("-3", "Available Recipes");
+
+			IntToString(POS_ALLITEM, buffer, sizeof(buffer));
+			menu.AddItem(buffer, "Available Recipes");
 		}
 		else
 		{
@@ -329,7 +331,7 @@ public int CraftingH(Menu menu, MenuAction action, int client, int choice)
 			if(choice != MenuCancel_ExitBack)
 				return;
 
-			if(Client[client].RemovePos() != -1)
+			if(Client[client].RemovePos())
 			{
 				Crafting(client);
 			}
@@ -402,8 +404,11 @@ public int CraftingItemH(Menu panel, MenuAction action, int client, int choice)
 							}
 
 							if(!deny)
-								amount[i] = gain-cost;
-
+							{
+								amount[i] = gain;
+								if(craft.Kv.GetNum("consume", 1))
+									amount[i] -= cost;
+							}
 							break;
 						}
 					}

@@ -26,9 +26,17 @@
 #define MAX_ITEM_LENGTH		48
 #define MAX_DESC_LENGTH		256
 #define MAX_TITLE_LENGTH		192
+#define MAX_DATA_LENGTH		256
 #define MAX_NUM_LENGTH		5
 
 EngineVersion GameType = Engine_Unknown;
+
+enum struct FullItemEnum
+{
+	int Index;
+	char Name[MAX_ITEM_LENGTH];
+	char Data[MAX_DATA_LENGTH];
+}
 
 // SourceMod Events
 

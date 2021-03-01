@@ -11,7 +11,7 @@ stock void GenerateClientList(Menu menu, int client=0)
 		GetClientName(target, name, sizeof(name));
 		if(client && !CanUserTarget(client, target))
 		{
-			menu.AddItem("-1", name, ITEMDRAW_DISABLED);
+			menu.AddItem("", name, ITEMDRAW_DISABLED);
 			continue;
 		}
 

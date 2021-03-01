@@ -1,24 +1,18 @@
 #define ITEM_MULTI	"multi"
 
-stock ItemResult Multi_Use(int client, bool equipped, KeyValues item, int index, const char[] name, int &count)
+stock ItemResult Multi_Use(int client, bool equipped, KeyValues kv, int index, const char[] name, int &count)
 {
 	int maxItems = TextStore_GetItems();
-
-	char[][] names = new char[maxItems][MAX_ITEM_LENGTH];
-	for(int i; i<maxItems; i++)
-	{
-		TextStore_GetItemName(i, names[i], MAX_ITEM_LENGTH);
-	}
-
 	int amount;
-	static char buffer[MAX_ITEM_LENGTH];
-	item.GetString("locked", buffer, sizeof(buffer));
+	static char buffer[MAX_ITEM_LENGTH], buffer2[MAX_DATA_LENGTH+MAX_ITEM_LENGTH+MAX_ITEM_LENGTH];
+	kv.GetString("locked", buffer, sizeof(buffer));
 	if(buffer[0])
 	{
 		bool found;
 		for(int i; i<maxItems; i++)
 		{
-			if(!StrEqual(buffer, names[i], false))
+			TextStore_GetItemName(i, buffer2, sizeof(buffer2));
+			if(!StrEqual(buffer, buffer2, false))
 				continue;
 
 			TextStore_GetInv(client, i, amount);
@@ -39,20 +33,31 @@ stock ItemResult Multi_Use(int client, bool equipped, KeyValues item, int index,
 
 	for(int i=1; ; i++)
 	{
-		static char buffer2[MAX_NUM_LENGTH];
-		IntToString(i, buffer2, sizeof(buffer2));
-		item.GetString(buffer2, buffer, sizeof(buffer));
-		if(!buffer[0])
+		IntToString(i, buffer, sizeof(buffer));
+		kv.GetString(buffer, buffer2, sizeof(buffer2));
+		if(!buffer2[0])
 			break;
+
+		static char buffers[3][MAX_DATA_LENGTH];
+		amount = ExplodeString(buffer2, ";", buffers, sizeof(buffers), sizeof(buffers[]));
 
 		for(int a; a<maxItems; a++)
 		{
-			if(!StrEqual(buffer, names[a], false))
+			TextStore_GetItemName(a, buffer, sizeof(buffer));
+			if(!StrEqual(buffers[0], buffer, false))
 				continue;
 
-			SPrintToChat(client, "You unboxed %s%s", STORE_COLOR2, names[a]);
-			TextStore_GetInv(client, a, amount);
-			TextStore_SetInv(client, a, amount+1);
+			if(amount > 1)
+			{
+				TextStore_CreateUniqueItem(client, a, buffers[1], amount>2 ? buffers[2] : NULL_STRING);
+			}
+			else
+			{
+				TextStore_GetInv(client, a, amount);
+				TextStore_SetInv(client, a, amount+1);
+			}
+
+			SPrintToChat(client, "You unboxed %s%s", STORE_COLOR2, amount>2 ? buffers[2] : buffer2);
 			break;
 		}
 	}

@@ -93,7 +93,7 @@ Action Trading_SayCommand(int client, const char[] buffer)
 				if(IsCharNumeric(buffer[0]) || buffer[0]=='-')
 				{
 					int value = Client[client].GetPos();
-					if(value != -1)
+					if(value != POS_NONE)
 					{
 						ItemEnum item;
 						Items.GetArray(value, item);
@@ -435,22 +435,65 @@ static void TradingInv(int client)
 	}
 
 	ItemEnum item;
+	int target = Client[client].StoreType==Type_Inven ? client : Client[client].Target;
 	int primary = Client[client].GetPos();
-	if(primary != -1)
+	static char num[MAX_NUM_LENGTH];
+	if(primary == POS_ALLITEM)
+	{
+		Menu menu = new Menu(TradingInvH);
+		menu.SetTitle("Trading: %N\n%N's Inventory\nAll Items\n ", Client[client].Target, target);
+
+		bool found;
+		int length = Items.Length;
+		for(int i; i<length; i++)
+		{
+			Items.GetArray(i, item);
+			if(item.Kv)
+			{
+				if(item.Count[target] < 1)
+					continue;
+
+				item.Kv.Rewind();
+				if(!item.Kv.GetNum("trade", 1))
+					continue;
+			}
+
+			IntToString(i, num, sizeof(num));
+			menu.AddItem(num, item.Name);
+			found = true;
+		}
+
+		if(!found)
+			menu.AddItem("", "No Tradable Items", ITEMDRAW_DISABLED);
+
+		menu.ExitBackButton = true;
+		menu.ExitButton = true;
+		menu.Display(client, MENU_TIME_FOREVER);
+		return;
+	}
+
+	if(primary != POS_NONE)
+	{
+		if(primary < 0)
+		{
+			UniqueEnum unique;
+			UniqueList.GetArray(-1-primary, unique);
+			primary = unique.BaseItem;
+		}
+
 		Items.GetArray(primary, item);
+	}
 
 	if(!item.Kv)
 	{
-		int target = Client[client].StoreType==Type_Inven ? client : Client[client].Target;
-
 		Menu menu = new Menu(TradingInvH);
-		if(primary == -1)
+		if(primary == POS_NONE)
 		{
 			menu.SetTitle("Trading: %N\n%N's Inventory\nCredits: %d\n ", Client[client].Target, target, Client[target].Cash);
 		}
 		else
 		{
-			menu.SetTitle("Trading: %s\n%N's Inventory\n ", item.Name, target);
+			menu.SetTitle("Trading: %N\n%N's Inventory\n%s\n ", Client[client].Target, target, item.Name);
 		}
 
 		bool found;
@@ -471,18 +514,32 @@ static void TradingInv(int client)
 					continue;
 			}
 
-			static char buffer[MAX_NUM_LENGTH];
-			IntToString(i, buffer, sizeof(buffer));
-			menu.AddItem(buffer, item.Name);
+			IntToString(i, num, sizeof(num));
+			menu.AddItem(num, item.Name);
 			found = true;
 		}
 
-		if(!found)
-			menu.AddItem("-1", "No Items", ITEMDRAW_DISABLED);
+		if(primary == POS_NONE)
+		{
+			IntToString(POS_ALLITEM, num, sizeof(num));
+			menu.AddItem(num, "All Items");
+		}
+		else if(!found)
+		{
+			menu.AddItem("", "No Tradable Items", ITEMDRAW_DISABLED);
+		}
 
 		menu.ExitBackButton = true;
 		menu.ExitButton = true;
 		menu.Display(client, MENU_TIME_FOREVER);
+		return;
+	}
+
+	item.Kv.Rewind();
+	if(!item.Kv.GetNum("trade", 1))
+	{
+		Client[client].ClearPos();
+		TradingInv(client);
 		return;
 	}
 
@@ -493,9 +550,9 @@ static void TradingInv(int client)
 	FormatEx(buffer, sizeof(buffer), "%s\n ", item.Name);
 	panel.SetTitle(buffer);
 
-	item.Kv.Rewind();
 	item.Kv.GetString("desc", buffer, sizeof(buffer), "No Description");
 	ReplaceString(buffer, sizeof(buffer), "\\n", "\n");
+	Forward_OnDescItem(client, primary, buffer);
 	panel.DrawText(buffer);
 
 	bool targetHas = item.Count[Client[client].Target]>1;
@@ -818,7 +875,7 @@ public int TradingInvH(Menu menu, MenuAction action, int client, int choice)
 				}
 				case MenuCancel_ExitBack:
 				{
-					if(Client[client].RemovePos() != -1)
+					if(Client[client].RemovePos())
 					{
 						TradingInv(client);
 					}
@@ -850,7 +907,7 @@ public int TradingItemH(Menu panel, MenuAction action, int client, int choice)
 	{
 		switch(choice)
 		{
-			case 1:
+			case 1, 2:
 			{
 				int target = choice==2 ? Client[client].Target : client;
 
