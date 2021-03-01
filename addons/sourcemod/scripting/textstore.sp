@@ -543,7 +543,7 @@ public Action CommandGiveItem(int client, int args)
 						{
 							item.Count[targets[target]] = 0;
 						}
-						else if(!item.Equip[targets[target]])
+						else if(equip && !item.Equip[targets[target]])
 						{
 							UseThisItem(client, index, item);
 						}
@@ -797,7 +797,7 @@ void AdminMenu(int client)
 		return;
 	}
 
-	int length = Client[client].Pos ? 0 : Client[client].Pos.Length;
+	int length = Client[client].Pos ? Client[client].Pos.Length : 0;
 	if(!length)
 	{
 		Menu menu = new Menu(GeneralMenuH);
@@ -849,6 +849,7 @@ void AdminMenu(int client)
 					menu.ExitBackButton = true;
 					menu.ExitButton = true;
 					menu.Display(client, MENU_TIME_FOREVER);
+					return;
 				}
 				case 3:
 				{
@@ -874,6 +875,7 @@ void AdminMenu(int client)
 					menu.ExitBackButton = true;
 					menu.ExitButton = true;
 					menu.Display(client, MENU_TIME_FOREVER);
+					return;
 				}
 				default:
 				{
@@ -918,12 +920,13 @@ void AdminMenu(int client)
 					Menu menu = new Menu(GeneralMenuH);
 					menu.SetTitle("Store Admin Menu: Give Item\nTarget: %N\nMode:", target);
 					menu.AddItem("1", "Give One");
-					menu.AddItem("3", "Remove One");
-					menu.AddItem("2", "Give & Equip");
+					menu.AddItem("2", "Remove One");
+					menu.AddItem("3", "Give & Equip");
 					menu.AddItem("4", "Remove All");
 					menu.ExitBackButton = true;
 					menu.ExitButton = true;
 					menu.Display(client, MENU_TIME_FOREVER);
+					return;
 				}
 				case 3:
 				{
@@ -948,6 +951,7 @@ void AdminMenu(int client)
 					menu.ExitBackButton = true;
 					menu.ExitButton = true;
 					menu.Display(client, MENU_TIME_FOREVER);
+					return;
 				}
 				default:
 				{
@@ -961,7 +965,7 @@ void AdminMenu(int client)
 							if(--item.Count[target] < 1)
 								item.Equip[target] = false;
 
-							CShowActivity2(client, STORE_PREFIX2, "%Removed %s%N's %s%s", STORE_COLOR, STORE_COLOR2, target, STORE_COLOR, item.Name);
+							CShowActivity2(client, STORE_PREFIX2, "%sRemoved %s%N's %s%s", STORE_COLOR, STORE_COLOR2, target, STORE_COLOR, item.Name);
 						}
 						case 3:
 						{
@@ -973,7 +977,7 @@ void AdminMenu(int client)
 						{
 							item.Count[target] = 0;
 							item.Equip[target] = false;
-							CShowActivity2(client, STORE_PREFIX2, "%Removed all of %s%N's %s%s", STORE_COLOR, STORE_COLOR2, target, STORE_COLOR, item.Name);
+							CShowActivity2(client, STORE_PREFIX2, "%sRemoved all of %s%N's %s%s", STORE_COLOR, STORE_COLOR2, target, STORE_COLOR, item.Name);
 						}
 						default:
 						{
@@ -986,6 +990,9 @@ void AdminMenu(int client)
 			}
 		}
 	}
+
+	Client[client].ClearPos();
+	AdminMenu(client);
 }
 
 public int GeneralMenuH(Menu menu, MenuAction action, int client, int choice)

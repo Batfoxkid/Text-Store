@@ -404,8 +404,11 @@ public int CraftingItemH(Menu panel, MenuAction action, int client, int choice)
 							}
 
 							if(!deny)
-								amount[i] = gain-cost;
-
+							{
+								amount[i] = gain;
+								if(craft.Kv.GetNum("consume", 1))
+									amount[i] -= cost;
+							}
 							break;
 						}
 					}
