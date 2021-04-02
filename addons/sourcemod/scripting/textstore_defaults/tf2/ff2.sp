@@ -23,14 +23,13 @@ stock ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, c
 		return Item_None;
 	}
 
-	static char buffer[64];
+	static char buffer[256];
 	if(GetFeatureStatus(FeatureType_Native, "FF2_GetQueuePoints") != FeatureStatus_Available)
 	{
 		if(CheckCommandAccess(client, "textstore_dev", ADMFLAG_RCON))
 		{
-			char buffer2[256];
-			item.GetString("plugin", buffer2, sizeof(buffer2));
-			SPrintToChat(client, "%s can't find Freak Fortress 2 natives!", buffer2);
+			item.GetString("plugin", buffer, sizeof(buffer));
+			SPrintToChat(client, "%s can't find Freak Fortress 2 natives!", buffer);
 		}
 		else
 		{
@@ -85,8 +84,18 @@ stock ItemResult FF2_Use(int client, bool equipped, KeyValues item, int index, c
 			}
 		}
 
-		if(!used)
+		if(used)
+		{
+			if(index < 0)
+			{
+				if(TextStore_GetItemData(index, buffer, sizeof(buffer)) && StrContains(buffer, "infinite")!=-1)
+					used = false;
+			}
+		}
+		else
+		{
 			SPrintToChat(client, "%s%s%s is not available right now!", STORE_COLOR2, buffer, STORE_COLOR);
+		}
 	}
 
 	// Select a boss (Unofficial FF2)
@@ -179,7 +188,7 @@ public Action FF2_OnSpecialSelected(int boss, int &special, char[] name, bool pr
 				continue;
 			}
 
-			static char buffer[64];
+			static char buffer[256];
 			pack.ReadString(buffer, sizeof(buffer));
 			if(!StrEqual(buffer, name, false))
 				continue;
@@ -193,7 +202,10 @@ public Action FF2_OnSpecialSelected(int boss, int &special, char[] name, bool pr
 				TextStore_GetInv(client, FF2StoreIndex[client], items);
 				if(items > 0)
 				{
-					TextStore_SetInv(client, FF2StoreIndex[client], items-1, items==1 ? 0 : -1);
+					if(FF2StoreIndex[client]>=0 || !TextStore_GetItemData(FF2StoreIndex[client], buffer, sizeof(buffer)) || StrContains(buffer, "infinite")==-1)
+					{
+						TextStore_SetInv(client, FF2StoreIndex[client], items-1, items==1 ? 0 : -1);
+					}
 				}
 				else
 				{
@@ -221,7 +233,7 @@ void FF2_OnArenaRoundStart()
 		if(boss == -1)
 			continue;
 
-		static char buffer[64];
+		static char buffer[256];
 		FF2_GetBossSpecial(boss, buffer, sizeof(buffer), 0);
 		if(StrEqual(buffer, FF2Selection[client]))
 		{
@@ -231,7 +243,10 @@ void FF2_OnArenaRoundStart()
 			TextStore_GetInv(client, FF2StoreIndex[client], items);
 			if(items > 0)
 			{
-				TextStore_SetInv(client, FF2StoreIndex[client], items-1, items==1 ? 0 : -1);
+				if(FF2StoreIndex[client]>=0 || !TextStore_GetItemData(FF2StoreIndex[client], buffer, sizeof(buffer)) || StrContains(buffer, "infinite")==-1)
+				{
+					TextStore_SetInv(client, FF2StoreIndex[client], items-1, items==1 ? 0 : -1);
+				}
 			}
 			else
 			{

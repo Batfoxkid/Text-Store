@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.1.0"
+#define PLUGIN_VERSION	"1.1.1"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -288,8 +288,10 @@ void SetupClient(int client)
 			else
 			{
 				item.Count[client] += StringToInt(buffers[1]);
-				if(!StringToInt(buffers[2]) || !UseThisItem(client, i, item))
-					Items.SetArray(i, item);
+				if(StringToInt(buffers[2]))
+					UseThisItem(client, i, item);
+
+				Items.SetArray(i, item);
 			}
 			break;
 		}
@@ -545,7 +547,7 @@ public Action CommandGiveItem(int client, int args)
 						}
 						else if(equip && !item.Equip[targets[target]])
 						{
-							UseThisItem(client, index, item);
+							UseThisItem(targets[target], index, item);
 						}
 					}
 

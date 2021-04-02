@@ -365,7 +365,8 @@ public int CraftingItemH(Menu panel, MenuAction action, int client, int choice)
 			Crafts.GetArray(Client[client].GetPos(), craft);
 
 			craft.Kv.Rewind();
-			if(craft.Kv.GetNum("cost") <= Client[client].Cash)
+			int cash = craft.Kv.GetNum("cost");
+			if(cash <= Client[client].Cash)
 			{
 				static char buffer[MAX_ITEM_LENGTH];
 
@@ -416,6 +417,8 @@ public int CraftingItemH(Menu panel, MenuAction action, int client, int choice)
 
 				if(!deny)
 				{
+					Client[client].Cash -= cash;
+
 					for(int i; i<length; i++)
 					{
 						if(!amount[i])
