@@ -248,9 +248,19 @@ bool Unique_UseItem(int client, int index)
 		static char buffer[256];
 		item.Kv.GetString("plugin", buffer, sizeof(buffer));
 
+		static char name[48];
+		if(unique.Name[0])
+		{
+			strcopy(name, sizeof(name), unique.Name);
+		}
+		else
+		{
+			FormatEx(name, sizeof(name), "%s*", item.Name);
+		}
+
 		int temp = 1;
 		ItemResult result = Item_None;
-		if(Forward_OnUseItem(result, buffer, client, unique.Equipped, item.Kv, -1-index, unique.Name, temp))
+		if(Forward_OnUseItem(result, buffer, client, unique.Equipped, item.Kv, -1-index, name, temp))
 		{
 			switch(result)
 			{

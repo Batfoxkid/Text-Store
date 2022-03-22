@@ -1,10 +1,14 @@
 static GlobalForward OnSellItem;
 static GlobalForward OnDescItem;
+static GlobalForward OnClientLoad;
+static GlobalForward OnClientSave;
 
 void Forward_PluginLoad()
 {
-	OnSellItem = new GlobalForward("TextStore_OnSellItem", ET_Hook, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
+	OnSellItem = new GlobalForward("TextStore_OnSellItem", ET_Event, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 	OnDescItem = new GlobalForward("TextStore_OnDescItem", ET_Ignore, Param_Cell, Param_Cell, Param_String);
+	OnClientLoad = new GlobalForward("TextStore_OnClientLoad", ET_Event, Param_Cell, Param_String);
+	OnClientSave = new GlobalForward("TextStore_OnClientSave", ET_Event, Param_Cell, Param_String);
 }
 
 bool Forward_OnUseItem(ItemResult &result, const char[] pluginname, int client, bool equipped, KeyValues kv, int index, const char[] name, int &count)
@@ -67,4 +71,24 @@ void Forward_OnDescItem(int client, int item, char desc[MAX_DESC_LENGTH])
 	Call_PushCell(item);
 	Call_PushStringEx(desc, MAX_DESC_LENGTH, SM_PARAM_STRING_COPY|SM_PARAM_STRING_UTF8, SM_PARAM_COPYBACK);
 	Call_Finish();
+}
+
+Action Forward_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
+{
+	Action action = Plugin_Continue;
+	Call_StartForward(OnClientLoad);
+	Call_PushCell(client);
+	Call_PushStringEx(file, sizeof(file), SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
+	Call_Finish(action);
+	return action;
+}
+
+Action Forward_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
+{
+	Action action = Plugin_Continue;
+	Call_StartForward(OnClientLoad);
+	Call_PushCell(client);
+	Call_PushStringEx(file, sizeof(file), SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
+	Call_Finish(action);
+	return action;
 }

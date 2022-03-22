@@ -97,6 +97,16 @@ native KeyValues TextStore_GetItemKv(int item);
 native int TextStore_GetItemName(int item, char[] buffer, int length);
 
 /**
+ * Sets the name of a unique item
+ *
+ * @param item		Item index
+ * @param name		Custom item name
+ *
+ * @noreturn
+ */
+native void TextStore_SetItemName(int item, const char[] name="");
+
+/**
  * Gets data of a unique item
  *
  * @param item		Item index
@@ -106,6 +116,16 @@ native int TextStore_GetItemName(int item, char[] buffer, int length);
  * @return		Number of bytes written
  */
 native int TextStore_GetItemData(int item, char[] buffer, int length);
+
+/**
+ * Sets data of a unique item
+ *
+ * @param item		Item index
+ * @param data		Item data string
+ *
+ * @noreturn
+ */
+native void TextStore_SetItemData(int item, const char[] data);
 
 /**
  * Creates a unique variant of an item
@@ -143,6 +163,26 @@ forward Action TextStore_OnSellItem(int client, int item, int cash, int &count, 
  * @noreturn
  */
 forward void TextStore_OnDescItem(int client, int item, char[] desc);
+
+/**
+ * Called when a client's items are loading into cache
+ *
+ * @param client	Client index
+ * @param file		TextStore save file
+ *
+ * @return		Plugin_Changed to change the filepath, Plugin_Handled to not load items but consider client loaded, Plugin_Stop to prevent loading
+ */
+forward Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH]);
+
+/**
+ * Called when a client's items are saving into a file
+ *
+ * @param client	Client index
+ * @param file		TextStore save file
+ *
+ * @return		Plugin_Changed to change the filepath, Plugin_Handled/Plugin_Stop to not save items
+ */
+forward Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH]);
 
 /**
  * Called to a given plugin when a item is used
@@ -221,7 +261,9 @@ public void __pl_TextStore_SetNTVOptional()
 	MarkNativeAsOptional("TextStore_ClientReload");
 	MarkNativeAsOptional("TextStore_GetItems");
 	MarkNativeAsOptional("TextStore_GetItemName");
+	MarkNativeAsOptional("TextStore_SetItemName");
 	MarkNativeAsOptional("TextStore_GetItemData");
+	MarkNativeAsOptional("TextStore_SetItemData");
 	MarkNativeAsOptional("TextStore_CreateUniqueItem");
 }
 #endif

@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.1.1"
+#define PLUGIN_VERSION	"1.1.2"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -251,8 +251,15 @@ void SetupClient(int client)
 	if(!GetClientAuthId(client, AuthId_SteamID64, buffer, sizeof(buffer)))
 		return;
 
-	Client[client].Ready = true;
 	BuildPath(Path_SM, buffer, sizeof(buffer), DATA_PLAYERS, buffer);
+	Action action = Forward_OnClientLoad(client, buffer);
+	if(action == Plugin_Stop)
+		return;
+
+	Client[client].Ready = true;
+	if(action == Plugin_Handled)
+		return;
+
 	if(!FileExists(buffer))
 		return;
 
@@ -263,6 +270,7 @@ void SetupClient(int client)
 	static char buffers[4][MAX_DATA_LENGTH];
 	while(!file.EndOfFile() && file.ReadLine(buffer, sizeof(buffer)))
 	{
+		ReplaceString(buffer, sizeof(buffer), "\n", "");
 		int count = ExplodeString(buffer, ";", buffers, sizeof(buffers), sizeof(buffers[]));
 		if(count < 2)
 			continue;
@@ -329,6 +337,10 @@ void SaveClient(int client)
 {
 	static char buffer[PLATFORM_MAX_PATH];
 	if(!GetClientAuthId(client, AuthId_SteamID64, buffer, sizeof(buffer)))
+		return;
+
+	Action action = Forward_OnClientLoad(client, buffer);
+	if(action >= Plugin_Handled)
 		return;
 
 	BuildPath(Path_SM, buffer, sizeof(buffer), DATA_PLAYERS, buffer);

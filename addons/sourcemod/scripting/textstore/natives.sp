@@ -12,7 +12,9 @@ void Native_PluginLoad()
 	CreateNative("TextStore_GetItems", Native_GetItems);
 	CreateNative("TextStore_GetItemKv", Native_GetItemKv);
 	CreateNative("TextStore_GetItemName", Native_GetItemName);
+	CreateNative("TextStore_SetItemName", Native_SetItemName);
 	CreateNative("TextStore_GetItemData", Native_GetItemData);
+	CreateNative("TextStore_SetItemData", Native_SetItemData);
 	CreateNative("TextStore_CreateUniqueItem", Native_NewUniqueItem);
 }
 
@@ -157,7 +159,7 @@ public any Native_GetItemKv(Handle plugin, int numParams)
 	if(index < 0)
 	{
 		UniqueEnum unique;
-		UniqueList.GetArray(index, unique);
+		UniqueList.GetArray(-1-index, unique);
 		index = unique.BaseItem;
 	}
 
@@ -178,21 +180,25 @@ public any Native_GetItemName(Handle plugin, int numParams)
 	if(-UniqueList.Length>index || index>=Items.Length)
 		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, index);
 
+	bool add;
 	if(index < 0)
 	{
 		UniqueEnum unique;
-		UniqueList.GetArray(index, unique);
+		UniqueList.GetArray(-1-index, unique);
 		if(unique.Name[0])
 		{
 			SetNativeString(2, unique.Name, GetNativeCell(3), _, index);
 			return index;
 		}
+
+		add = true;
+		index = unique.BaseItem;
 	}
 
 	ItemEnum item;
 	Items.GetArray(index, item);
 
-	if(index < 0)
+	if(add)
 	{
 		index = strlen(item.Name);
 		item.Name[index] = '*';
@@ -203,19 +209,43 @@ public any Native_GetItemName(Handle plugin, int numParams)
 	return index;
 }
 
+public any Native_SetItemName(Handle plugin, int numParams)
+{
+	int length = UniqueList.Length;
+	int index = -1-GetNativeCell(1);
+	if(index>=length || index<0)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, -1-index);
+
+	UniqueEnum unique;
+	UniqueList.GetArray(index, unique);
+	GetNativeString(2, unique.Name, sizeof(unique.Name));
+	UniqueList.SetArray(index, unique);
+}
+
 public any Native_GetItemData(Handle plugin, int numParams)
 {
 	int length = UniqueList.Length;
 	int index = -1-GetNativeCell(1);
-	if(index >= length)
-		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, index);
+	if(index>=length || index<0)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, -1-index);
 
 	UniqueEnum unique;
-	if(index >= 0)
-		UniqueList.GetArray(index, unique);
-
+	UniqueList.GetArray(index, unique);
 	SetNativeString(2, unique.Data, GetNativeCell(3), _, index);
 	return index;
+}
+
+public any Native_SetItemData(Handle plugin, int numParams)
+{
+	int length = UniqueList.Length;
+	int index = -1-GetNativeCell(1);
+	if(index>=length || index<0)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, -1-index);
+
+	UniqueEnum unique;
+	UniqueList.GetArray(index, unique);
+	GetNativeString(2, unique.Data, sizeof(unique.Data));
+	UniqueList.SetArray(index, unique);
 }
 
 public any Native_NewUniqueItem(Handle plugin, int numParams)
@@ -237,5 +267,5 @@ public any Native_NewUniqueItem(Handle plugin, int numParams)
 	char name[MAX_ITEM_LENGTH];
 	GetNativeString(4, name, sizeof(name));
 
-	return Unique_AddItem(index, client, GetNativeCell(5), name, data);
+	return -1-Unique_AddItem(index, client, GetNativeCell(5), name, data);
 }
