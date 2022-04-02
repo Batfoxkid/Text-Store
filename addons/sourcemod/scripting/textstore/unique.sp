@@ -10,9 +10,6 @@ ArrayList UniqueList;
 
 void Unique_PluginStart()
 {
-	if(UniqueList != INVALID_HANDLE)
-		delete UniqueList;
-
 	UniqueList = new ArrayList(sizeof(UniqueEnum));
 }
 
@@ -235,7 +232,7 @@ public int UniqueItemH(Menu panel, MenuAction action, int client, int choice)
 	Unique(client);
 }
 
-bool Unique_UseItem(int client, int index)
+bool Unique_UseItem(int client, int index, bool auto=false)
 {
 	UniqueEnum unique;
 	UniqueList.GetArray(index, unique);
@@ -260,7 +257,7 @@ bool Unique_UseItem(int client, int index)
 
 		int temp = 1;
 		ItemResult result = Item_None;
-		if(Forward_OnUseItem(result, buffer, client, unique.Equipped, item.Kv, -1-index, name, temp))
+		if(Forward_OnUseItem(result, buffer, client, unique.Equipped, item.Kv, -1-index, name, temp, auto))
 		{
 			switch(result)
 			{

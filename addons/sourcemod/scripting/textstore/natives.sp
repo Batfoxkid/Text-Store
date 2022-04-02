@@ -9,6 +9,8 @@ void Native_PluginLoad()
 	CreateNative("TextStore_Cash", Native_Cash);
 	CreateNative("TextStore_ClientSave", Native_ClientSave);
 	CreateNative("TextStore_ClientReload", Native_ClientReload);
+	CreateNative("TextStore_GetClientLoad", Native_GetClientLoad);
+	CreateNative("TextStore_SetClientLoad", Native_SetClientLoad);
 	CreateNative("TextStore_GetItems", Native_GetItems);
 	CreateNative("TextStore_GetItemKv", Native_GetItemKv);
 	CreateNative("TextStore_GetItemName", Native_GetItemName);
@@ -16,6 +18,7 @@ void Native_PluginLoad()
 	CreateNative("TextStore_GetItemData", Native_GetItemData);
 	CreateNative("TextStore_SetItemData", Native_SetItemData);
 	CreateNative("TextStore_CreateUniqueItem", Native_NewUniqueItem);
+	CreateNative("TextStore_UseItem", Native_UseItem);
 }
 
 public any Native_GetInv(Handle plugin, int numParams)
@@ -35,8 +38,8 @@ public any Native_GetInv(Handle plugin, int numParams)
 	{
 		UniqueEnum unique;
 		UniqueList.GetArray(-1-index, unique);
-		SetNativeCellRef(3, 1);
-		return unique.Equipped;
+		SetNativeCellRef(3, unique.Owner==client ? 0 : 1);
+		return unique.Owner==client ? false : unique.Equipped;
 	}
 
 	ItemEnum item;
@@ -123,6 +126,9 @@ public any Native_Cash(Handle plugin, int numParams)
 
 public any Native_ClientSave(Handle plugin, int numParams)
 {
+	if(Items == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
 	int client = GetNativeCell(1);
 	if(client<0 || client>MaxClients || !IsClientInGame(client))
 		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
@@ -132,6 +138,9 @@ public any Native_ClientSave(Handle plugin, int numParams)
 
 public any Native_ClientReload(Handle plugin, int numParams)
 {
+	if(Items == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
 	int client = GetNativeCell(1);
 	if(client<0 || client>MaxClients || !IsClientInGame(client))
 		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
@@ -139,11 +148,30 @@ public any Native_ClientReload(Handle plugin, int numParams)
 	SetupClient(client);
 }
 
+public any Native_GetClientLoad(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	if(client<0 || client>MAXPLAYERS)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
+
+	return Client[client].Ready;
+}
+
+public any Native_SetClientLoad(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	if(client<0 || client>MAXPLAYERS)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
+
+	Client[client].Ready = GetNativeCell(2);
+}
+
 public any Native_GetItems(Handle plugin, int numParams)
 {
 	if(Items == INVALID_HANDLE)
 		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
 
+	SetNativeCellRef(1, UniqueList.Length);
 	return Items.Length;
 }
 
@@ -211,9 +239,11 @@ public any Native_GetItemName(Handle plugin, int numParams)
 
 public any Native_SetItemName(Handle plugin, int numParams)
 {
-	int length = UniqueList.Length;
+	if(UniqueList == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
 	int index = -1-GetNativeCell(1);
-	if(index>=length || index<0)
+	if(index>=UniqueList.Length || index<0)
 		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, -1-index);
 
 	UniqueEnum unique;
@@ -224,9 +254,11 @@ public any Native_SetItemName(Handle plugin, int numParams)
 
 public any Native_GetItemData(Handle plugin, int numParams)
 {
-	int length = UniqueList.Length;
+	if(UniqueList == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
 	int index = -1-GetNativeCell(1);
-	if(index>=length || index<0)
+	if(index>=UniqueList.Length || index<0)
 		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, -1-index);
 
 	UniqueEnum unique;
@@ -237,9 +269,11 @@ public any Native_GetItemData(Handle plugin, int numParams)
 
 public any Native_SetItemData(Handle plugin, int numParams)
 {
-	int length = UniqueList.Length;
+	if(UniqueList == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
 	int index = -1-GetNativeCell(1);
-	if(index>=length || index<0)
+	if(index>=UniqueList.Length || index<0)
 		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, -1-index);
 
 	UniqueEnum unique;
@@ -268,4 +302,31 @@ public any Native_NewUniqueItem(Handle plugin, int numParams)
 	GetNativeString(4, name, sizeof(name));
 
 	return -1-Unique_AddItem(index, client, GetNativeCell(5), name, data);
+}
+
+public any Native_UseItem(Handle plugin, int numParams)
+{
+	if(Items == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
+	int client = GetNativeCell(1);
+	if(client<0 || client>MaxClients || !IsClientInGame(client))
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
+
+	int index = GetNativeCell(2);
+	if(index >= Items.Length)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, index);
+	
+	if(index < 0)
+	{
+		index = -1-index;
+		if(index >= UniqueList.Length)
+			ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, -1-index);
+		
+		return Unique_UseItem(client, index, GetNativeCell(3));
+	}
+	
+	ItemEnum item;
+	Items.GetArray(index, item);
+	return UseThisItem(client, index, item, GetNativeCell(3));
 }

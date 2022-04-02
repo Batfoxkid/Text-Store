@@ -11,7 +11,7 @@ void Forward_PluginLoad()
 	OnClientSave = new GlobalForward("TextStore_OnClientSave", ET_Event, Param_Cell, Param_String);
 }
 
-bool Forward_OnUseItem(ItemResult &result, const char[] pluginname, int client, bool equipped, KeyValues kv, int index, const char[] name, int &count)
+bool Forward_OnUseItem(ItemResult &result, const char[] pluginname, int client, bool equipped, KeyValues kv, int index, const char[] name, int &count, bool auto)
 {
 	Handle iter = GetPluginIterator();
 	while(MorePlugins(iter))
@@ -43,6 +43,7 @@ bool Forward_OnUseItem(ItemResult &result, const char[] pluginname, int client, 
 		Call_PushCell(index);
 		Call_PushString(name);
 		Call_PushCellRef(count);
+		Call_PushCell(auto);
 		Call_Finish(result);
 		delete iter;
 		return true;
@@ -73,7 +74,7 @@ void Forward_OnDescItem(int client, int item, char desc[MAX_DESC_LENGTH])
 	Call_Finish();
 }
 
-Action Forward_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
+Action Forward_OnClientLoad(int client, char file[512])
 {
 	Action action = Plugin_Continue;
 	Call_StartForward(OnClientLoad);
@@ -86,7 +87,7 @@ Action Forward_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
 Action Forward_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 {
 	Action action = Plugin_Continue;
-	Call_StartForward(OnClientLoad);
+	Call_StartForward(OnClientSave);
 	Call_PushCell(client);
 	Call_PushStringEx(file, sizeof(file), SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_Finish(action);

@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.1.2"
+#define PLUGIN_VERSION	"1.2.0"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -247,7 +247,7 @@ void SetupClient(int client)
 	if(IsFakeClient(client))
 		return;
 
-	static char buffer[PLATFORM_MAX_PATH];
+	static char buffer[512];
 	if(!GetClientAuthId(client, AuthId_SteamID64, buffer, sizeof(buffer)))
 		return;
 
@@ -291,13 +291,13 @@ void SetupClient(int client)
 			{
 				int index = Unique_AddItem(i, client, false, buffers[1], buffers[3]);
 				if(StringToInt(buffers[2]))
-					Unique_UseItem(client, index);
+					Unique_UseItem(client, index, true);
 			}
 			else
 			{
 				item.Count[client] += StringToInt(buffers[1]);
 				if(StringToInt(buffers[2]))
-					UseThisItem(client, i, item);
+					UseThisItem(client, i, item, true);
 
 				Items.SetArray(i, item);
 			}
@@ -333,13 +333,13 @@ public void OnClientDisconnect(int client)
 	Unique_Disconnect(client);
 }
 
-void SaveClient(int client)
+bool SaveClient(int client)
 {
 	static char buffer[PLATFORM_MAX_PATH];
 	if(!GetClientAuthId(client, AuthId_SteamID64, buffer, sizeof(buffer)))
 		return;
 
-	Action action = Forward_OnClientLoad(client, buffer);
+	Action action = Forward_OnClientSave(client, buffer);
 	if(action >= Plugin_Handled)
 		return;
 
@@ -1185,13 +1185,13 @@ void ReturnStoreType(int client)
 	}
 }
 
-bool UseThisItem(int client, int index, ItemEnum item)
+bool UseThisItem(int client, int index, ItemEnum item, bool auto=false)
 {
 	static char buffer[256];
 	item.Kv.GetString("plugin", buffer, sizeof(buffer));
 
 	ItemResult result = Item_None;
-	if(Forward_OnUseItem(result, buffer, client, item.Equip[client], item.Kv, index, item.Name, item.Count[client]))
+	if(Forward_OnUseItem(result, buffer, client, item.Equip[client], item.Kv, index, item.Name, item.Count[client], auto))
 	{
 		switch(result)
 		{

@@ -68,11 +68,32 @@ native void TextStore_ClientSave(int client);
 native void TextStore_ClientReload(int client);
 
 /**
+ * If the client has their inventory loaded from a save
+ *
+ * @param client	Client index
+ *
+ * @return		If the client has items loaded
+ */
+native bool TextStore_GetClientLoad(int client);
+
+/**
+ * Sets if the client has their inventory loaded from a save (If to call saving or not)
+ *
+ * @param client	Client index
+ * @param status	If the player is considered loaded
+ *
+ * @@noreturn
+ */
+native void TextStore_SetClientLoad(int client, bool status);
+
+/**
  * Gets the current amount of items and categories in the store
+ *
+ * @param uniques	Number of unique items
  *
  * @return		Amount of items and categories
  */
-native int TextStore_GetItems();
+native int TextStore_GetItems(int &uniques=0);
 
 /**
  * Gets the name of the item
@@ -141,6 +162,17 @@ native void TextStore_SetItemData(int item, const char[] data);
 native int TextStore_CreateUniqueItem(int client, int item, const char[] data, const char[] name="", bool equipped=false);
 
 /**
+ * Creates a unique variant of an item
+ *
+ * @param client	Client index
+ * @param item		Item index
+ * @param auto		If to consider this an auto equip
+ *
+ * @return		For common items: true if success. For unique items: true if the owner is still valid, false otherwise
+ */
+native bool TextStore_UseItem(int client, int item, bool auto=false);
+
+/**
  * Called when a client is about to be sold
  *
  * @param client	Client index
@@ -196,16 +228,18 @@ forward Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH]);
  * @param index		Item Index
  * @param name		Name of the item
  * @param count		Amount of the item in the client's inventory
+ * @param auto		If the item was used automatically, usually by connecting
  *
  * @return		Item result
  */
-forward ItemResult TextStore_Item(int client, bool equipped, KeyValues item, int index, const char[] name, int &count);
+forward ItemResult TextStore_Item(int client, bool equipped, KeyValues item, int index, const char[] name, int &count, bool auto);
 
 /**
  * Prints a color message with the store's prefix
  *
  * Uses the same params and return values as CPrintToChat, CPrintToChatAll, and CReplyToCommand
  */
+#if defined _colors_included
 stock void SPrintToChat(int client, const char[] message, any ...)
 {
 	SetGlobalTransTarget(client);
@@ -239,6 +273,7 @@ stock void SReplyToCommand(int client, const char[] message, any ...)
 		CPrintToChat(client, "%s%s", STORE_PREFIX, buffer);
 	}
 }
+#endif
 
 public SharedPlugin __pl_TextStore =
 {
