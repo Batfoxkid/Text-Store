@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"0.1.1"
+#define PLUGIN_VERSION	"0.1.2"
 
 ConVar CvarBackup;
 Database DataBase;
@@ -143,7 +143,7 @@ public void Database_ClientRetry(Database db, any userid, int numQueries, const 
 		}
 	}
 	
-	ThrowError(error);
+	LogError(error);
 }
 
 public void Database_ClientSetup(Database db, any userid, int numQueries, DBResultSet[] results, any[] queryData)
@@ -174,7 +174,9 @@ public void Database_ClientSetup(Database db, any userid, int numQueries, DBResu
 			Transaction tr = new Transaction();
 			
 			Format(data, sizeof(data), "INSERT INTO misc_data (steamid) VALUES (%d)", GetSteamAccountID(client));
-			tr.AddQuery(data);	
+			tr.AddQuery(data);
+			
+			DataBase.Execute(tr, Database_Success, Database_Fail);			
 		}
 		else
 		{
