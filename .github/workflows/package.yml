@@ -30,6 +30,7 @@ jobs:
           ./spcomp textstore.sp -o ../plugins/textstore.smx
           ./spcomp textstore_defaults.sp -o ../plugins/textstore_defaults.smx
           ./spcomp textstore_generic.sp -o ../plugins/textstore_generic.smx
+          ./spcomp textstore_sqlite.sp -o ../plugins/textstore_sqlite.smx
           ./spcomp textstore_tf2.sp -o ../plugins/textstore_tf2.smx
       
       - name: Package

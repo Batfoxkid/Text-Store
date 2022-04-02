@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"0.1.0"
+#define PLUGIN_VERSION	"0.1.1"
 
 ConVar CvarBackup;
 Database DataBase;
@@ -160,10 +160,10 @@ public void Database_ClientSetup(Database db, any userid, int numQueries, DBResu
 		if(LastUnique[client])
 		{
 			delete LastUnique[client];
-			LastUnique[client] = new ArrayList(ByteCountToCells(64));
+			LastUnique[client] = new ArrayList(ByteCountToCells(48));
 		}
 		
-		static char item[64], name[64], data[256];
+		static char item[48], name[48], data[256];
 		if((IsSM11() && results[0].FetchRow()) || (!IsSM11() && results[0].RowCount))
 		{
 			int cash = TextStore_Cash(client);
@@ -302,9 +302,9 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 				tr.AddQuery(buffer);
 			}
 			
-			LastUnique[client] = new ArrayList(ByteCountToCells(64));
+			LastUnique[client] = new ArrayList(ByteCountToCells(48));
 			
-			char item[64], name[64];
+			char item[48], name[48];
 			for(int i=-1; i>=uniques; i--)
 			{
 				bool equipped = TextStore_GetInv(client, i, amount);
@@ -353,7 +353,7 @@ void GiveNamedItem(int client, const char[] item, int amount, bool equipped)
 	int items = TextStore_GetItems();
 	for(int i; i<items; i++)
 	{
-		static char buffer[64];
+		static char buffer[48];
 		TextStore_GetItemName(i, buffer, sizeof(buffer));
 		if(StrEqual(item, buffer, false))
 		{
@@ -372,7 +372,7 @@ void GiveNamedUnique(int client, const char[] item, const char[] name, bool equi
 	int items = TextStore_GetItems();
 	for(int i; i<items; i++)
 	{
-		static char buffer[64];
+		static char buffer[48];
 		TextStore_GetItemName(i, buffer, sizeof(buffer));
 		if(StrEqual(item, buffer, false))
 		{
