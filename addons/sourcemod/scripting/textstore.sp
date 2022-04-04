@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.2.0"
+#define PLUGIN_VERSION	"1.2.1"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -21,7 +21,8 @@
 
 #define FPERM_DEFAULT	FPERM_O_EXEC|FPERM_O_READ|FPERM_G_EXEC|FPERM_G_READ|FPERM_U_EXEC|FPERM_U_WRITE|FPERM_U_READ
 
-#define DATA_PATH	"data/textstore/user"
+#define DATA_PATH1	"data/textstore"
+#define DATA_PATH2	"data/textstore/user"
 #define DATA_PLAYERS	"data/textstore/user/%s.txt"
 #define DATA_STORE	"configs/textstore/store.cfg"
 
@@ -180,10 +181,16 @@ public void OnPluginEnd()
 public void OnConfigsExecuted()
 {
 	char buffer[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, buffer, sizeof(buffer), DATA_PATH);
+	
+	// SourceMod can't create two folders (atleast tested on Windows)
+	BuildPath(Path_SM, buffer, sizeof(buffer), DATA_PATH1);
 	if(!DirExists(buffer))
 		CreateDirectory(buffer, FPERM_DEFAULT);
-
+	
+	BuildPath(Path_SM, buffer, sizeof(buffer), DATA_PATH2);
+	if(!DirExists(buffer))
+		CreateDirectory(buffer, FPERM_DEFAULT);
+	
 	BuildPath(Path_SM, buffer, sizeof(buffer), DATA_STORE);
 	KeyValues kv = new KeyValues("");
 	kv.ImportFromFile(buffer);
