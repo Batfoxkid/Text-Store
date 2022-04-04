@@ -5,7 +5,8 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"0.1.2"
+#define PLUGIN_VERSION	"1.0.0"
+//#define DEBUG
 
 ConVar CvarBackup;
 Database DataBase;
@@ -53,6 +54,10 @@ public void OnPluginStart()
 
 public void Database_SetupSuccess(Database db, any data, int numQueries, DBResultSet[] results, any[] queryData)
 {
+	#if defined DEBUG
+	PrintToServer("Database_SetupSuccess");
+	#endif
+	
 	for(int client = 1; client <= MaxClients; client++)
 	{
 		if(IsClientInGame(client))
@@ -78,6 +83,10 @@ public void Database_SetupFail(Database db, any data, int numQueries, const char
 
 public Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
 {
+	#if defined DEBUG
+	PrintToServer("TextStore_OnClientLoad");
+	#endif
+	
 	if(LastItems[client])
 	{
 		delete LastItems[client];
@@ -109,6 +118,10 @@ public Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
 		tr.AddQuery(buffer);
 		
 		DataBase.Execute(tr, Database_ClientSetup, Database_ClientRetry, GetClientUserId(client));
+		
+		#if defined DEBUG
+		PrintToConsole(client, "Started");
+		#endif
 	}
 	else if(CvarBackup.BoolValue)
 	{
@@ -120,6 +133,10 @@ public Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
 
 public void Database_ClientRetry(Database db, any userid, int numQueries, const char[] error, int failIndex, any[] queryData)
 {
+	#if defined DEBUG
+	PrintToServer("Database_ClientRetry");
+	#endif
+	
 	int client = GetClientOfUserId(userid);
 	if(client)
 	{
@@ -139,7 +156,10 @@ public void Database_ClientRetry(Database db, any userid, int numQueries, const 
 			tr.AddQuery(buffer);
 			
 			DataBase.Execute(tr, Database_ClientSetup, Database_ClientRetry, userid);
+			
+			#if !defined DEBUG
 			return;
+			#endif
 		}
 	}
 	
@@ -148,26 +168,31 @@ public void Database_ClientRetry(Database db, any userid, int numQueries, const 
 
 public void Database_ClientSetup(Database db, any userid, int numQueries, DBResultSet[] results, any[] queryData)
 {
+	#if defined DEBUG
+	PrintToServer("Database_ClientSetup");
+	#endif
+	
 	int client = GetClientOfUserId(userid);
 	if(client)
 	{
 		if(LastItems[client])
-		{
 			delete LastItems[client];
-			LastItems[client] = new ArrayList();
-		}
+		
+		LastItems[client] = new ArrayList();
 		
 		if(LastUnique[client])
-		{
 			delete LastUnique[client];
-			LastUnique[client] = new ArrayList(ByteCountToCells(48));
-		}
+		
+		LastUnique[client] = new ArrayList(ByteCountToCells(48));
 		
 		static char item[48], name[48], data[256];
-		if((IsSM11() && results[0].FetchRow()) || (!IsSM11() && results[0].RowCount))
+		if(results[0].FetchRow())
 		{
-			int cash = TextStore_Cash(client);
-			TextStore_Cash(client, results[0].FetchInt(1) - cash);
+			int cash = results[0].FetchInt(1) - TextStore_Cash(client);
+			#if defined DEBUG
+			PrintToConsole(client, "Cash = %d", cash);
+			#endif
+			TextStore_Cash(client, cash);
 		}
 		else if(!results[0].MoreRows)
 		{
@@ -176,28 +201,15 @@ public void Database_ClientSetup(Database db, any userid, int numQueries, DBResu
 			Format(data, sizeof(data), "INSERT INTO misc_data (steamid) VALUES (%d)", GetSteamAccountID(client));
 			tr.AddQuery(data);
 			
-			DataBase.Execute(tr, Database_Success, Database_Fail);			
+			DataBase.Execute(tr, Database_Success, Database_Fail);
+			
+			#if defined DEBUG
+			PrintToConsole(client, "Inserting");
+			#endif		
 		}
 		else
 		{
 			ThrowError("Unable to fetch first row");
-		}
-		
-		if(!IsSM11())
-		{
-			if(results[1].RowCount)
-			{
-				results[1].FetchString(1, item, sizeof(item));
-				GiveNamedItem(client, item, results[1].FetchInt(2), view_as<bool>(results[1].FetchInt(3)));
-			}
-			
-			if(results[2].RowCount)
-			{
-				results[2].FetchString(1, item, sizeof(item));
-				results[2].FetchString(2, name, sizeof(name));
-				results[2].FetchString(4, data, sizeof(data));
-				GiveNamedUnique(client, item, name, view_as<bool>(results[2].FetchInt(3)), data);
-			}
 		}
 		
 		while(results[1].MoreRows)
@@ -205,6 +217,11 @@ public void Database_ClientSetup(Database db, any userid, int numQueries, DBResu
 			if(results[1].FetchRow())
 			{
 				results[1].FetchString(1, item, sizeof(item));
+				
+				#if defined DEBUG
+				PrintToConsole(client, item);
+				#endif
+				
 				GiveNamedItem(client, item, results[1].FetchInt(2), view_as<bool>(results[1].FetchInt(3)));
 			}
 		}
@@ -216,9 +233,18 @@ public void Database_ClientSetup(Database db, any userid, int numQueries, DBResu
 				results[2].FetchString(1, item, sizeof(item));
 				results[2].FetchString(2, name, sizeof(name));
 				results[2].FetchString(4, data, sizeof(data));
+				
+				#if defined DEBUG
+				PrintToConsole(client, "%s | %s | %s", item, name, data);
+				#endif
+				
 				GiveNamedUnique(client, item, name, view_as<bool>(results[2].FetchInt(3)), data);
 			}
 		}
+		
+		#if defined DEBUG
+		PrintToConsole(client, "Loaded");
+		#endif
 		
 		TextStore_SetClientLoad(client, true);
 	}
@@ -226,6 +252,10 @@ public void Database_ClientSetup(Database db, any userid, int numQueries, DBResu
 
 public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 {
+	#if defined DEBUG
+	PrintToServer("TextStore_OnClientSave");
+	#endif
+	
 	if(DataBase)
 	{
 		int id = GetSteamAccountID(client);
@@ -256,6 +286,11 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 				{
 					TextStore_GetItemName(i, buffer, sizeof(buffer));
 					DataBase.Format(buffer, sizeof(buffer), "INSERT INTO common_items (steamid, item, count, equip) VALUES ('%d', '%s', '%d', '%d')", id, buffer, amount, equipped);
+					
+					#if defined DEBUG
+					PrintToConsole(client, buffer);
+					#endif
+					
 					tr.AddQuery(buffer);
 					list.Push(i);
 				}
@@ -264,6 +299,11 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 			{
 				TextStore_GetItemName(i, buffer, sizeof(buffer));
 				DataBase.Format(buffer, sizeof(buffer), "UPDATE common_items SET count = '%d', equip = '%d' WHERE steamid = %d AND item = '%s';", amount, equipped, id, buffer);
+				
+				#if defined DEBUG
+				PrintToConsole(client, buffer);
+				#endif
+				
 				tr.AddQuery(buffer);
 				list.Push(i);
 			}
@@ -271,6 +311,11 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 			{
 				TextStore_GetItemName(i, buffer, sizeof(buffer));
 				DataBase.Format(buffer, sizeof(buffer), "DELETE FROM common_items WHERE steamid = %d AND item = '%s';", id, buffer);
+				
+				#if defined DEBUG
+				PrintToConsole(client, buffer);
+				#endif
+				
 				tr.AddQuery(buffer);
 			}
 		}
@@ -293,6 +338,11 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 				{
 					LastUnique[client].GetString(i, buffer, sizeof(buffer));
 					DataBase.Format(buffer, sizeof(buffer), "DELETE FROM unique_items WHERE steamid = %d AND item = '%s';", id, buffer);
+					
+					#if defined DEBUG
+					PrintToConsole(client, buffer);
+					#endif
+					
 					tr.AddQuery(buffer);
 				}
 				
@@ -301,6 +351,11 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 			else
 			{
 				FormatEx(buffer, sizeof(buffer), "DELETE FROM unique_items WHERE steamid = %d;", id);
+				
+				#if defined DEBUG
+				PrintToConsole(client, buffer);
+				#endif
+				
 				tr.AddQuery(buffer);
 			}
 			
@@ -321,6 +376,11 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 						TextStore_GetItemData(i, buffer, sizeof(buffer));
 						
 						DataBase.Format(buffer, sizeof(buffer), "INSERT INTO unique_items (steamid, item, name, equip, data) VALUES ('%d', '%s', '%s', '%d', '%s')", id, item, name, equipped, buffer);
+						
+						#if defined DEBUG
+						PrintToConsole(client, buffer);
+						#endif
+						
 						tr.AddQuery(buffer);
 						
 						LastUnique[client].PushString(buffer);
@@ -343,15 +403,26 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 
 public void Database_Success(Database db, any data, int numQueries, DBResultSet[] results, any[] queryData)
 {
+	#if defined DEBUG
+	PrintToServer("Database_Success");
+	#endif
 }
 
 public void Database_Fail(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)
 {
+	#if defined DEBUG
+	PrintToServer("Database_Fail");
+	#endif
+	
 	LogError(error);
 }
 
 void GiveNamedItem(int client, const char[] item, int amount, bool equipped)
 {
+	#if defined DEBUG
+	PrintToServer("GiveNamedItem");
+	#endif
+	
 	int items = TextStore_GetItems();
 	for(int i; i<items; i++)
 	{
@@ -371,6 +442,10 @@ void GiveNamedItem(int client, const char[] item, int amount, bool equipped)
 
 void GiveNamedUnique(int client, const char[] item, const char[] name, bool equipped, const char[] data)
 {
+	#if defined DEBUG
+	PrintToServer("GiveNamedUnique");
+	#endif
+	
 	int items = TextStore_GetItems();
 	for(int i; i<items; i++)
 	{
@@ -388,19 +463,6 @@ void GiveNamedUnique(int client, const char[] item, const char[] name, bool equi
 			break;
 		}
 	}
-}
-
-bool IsSM11()	// https://github.com/alliedmodders/sourcemod/pull/1709
-{
-	static bool tested;
-	static bool result;
-	if(!tested)
-	{
-		// Close enough
-		result = GetFeatureStatus(FeatureType_Native, "Int64ToString") == FeatureStatus_Available;
-		tested = true;
-	}
-	return result;
 }
 
 #file "Text Store: SQLite"

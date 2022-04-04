@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.2.1"
+#define PLUGIN_VERSION	"1.2.2"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -254,12 +254,21 @@ void SetupClient(int client)
 	if(IsFakeClient(client))
 		return;
 
+	Action action;
 	static char buffer[512];
-	if(!GetClientAuthId(client, AuthId_SteamID64, buffer, sizeof(buffer)))
-		return;
-
-	BuildPath(Path_SM, buffer, sizeof(buffer), DATA_PLAYERS, buffer);
-	Action action = Forward_OnClientLoad(client, buffer);
+	if(GetClientAuthId(client, AuthId_SteamID64, buffer, sizeof(buffer)))
+	{
+		BuildPath(Path_SM, buffer, sizeof(buffer), DATA_PLAYERS, buffer);
+		action = Forward_OnClientLoad(client, buffer);
+	}
+	else
+	{
+		buffer[0] = 0;
+		action = Forward_OnClientLoad(client, buffer);
+		if(action == Plugin_Continue)
+			return;
+	}
+	
 	if(action == Plugin_Stop)
 		return;
 
@@ -343,14 +352,20 @@ public void OnClientDisconnect(int client)
 bool SaveClient(int client)
 {
 	static char buffer[PLATFORM_MAX_PATH];
-	if(!GetClientAuthId(client, AuthId_SteamID64, buffer, sizeof(buffer)))
-		return;
+	if(GetClientAuthId(client, AuthId_SteamID64, buffer, sizeof(buffer)))
+	{
+		BuildPath(Path_SM, buffer, sizeof(buffer), DATA_PLAYERS, buffer);
+		Action action = Forward_OnClientSave(client, buffer);
+		if(action >= Plugin_Handled)
+			return;
+	}
+	else
+	{
+		Action action = Forward_OnClientSave(client, buffer);
+		if(action != Plugin_Changed)
+			return;
+	}
 
-	Action action = Forward_OnClientSave(client, buffer);
-	if(action >= Plugin_Handled)
-		return;
-
-	BuildPath(Path_SM, buffer, sizeof(buffer), DATA_PLAYERS, buffer);
 	File file = OpenFile(buffer, "w");
 	if(!file)
 		return;
