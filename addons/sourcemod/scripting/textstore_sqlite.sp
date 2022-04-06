@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.0.0"
+#define PLUGIN_VERSION	"1.0.1"
 //#define DEBUG
 
 ConVar CvarBackup;
@@ -453,9 +453,9 @@ void GiveNamedUnique(int client, const char[] item, const char[] name, bool equi
 		TextStore_GetItemName(i, buffer, sizeof(buffer));
 		if(StrEqual(item, buffer, false))
 		{
-			TextStore_CreateUniqueItem(client, i, data, name, false);
+			int id = TextStore_CreateUniqueItem(client, i, data, name, false);
 			if(equipped)
-				TextStore_UseItem(client, i, true);
+				TextStore_UseItem(client, id, true);
 			
 			if(LastUnique[client].FindString(buffer) == -1)
 				LastUnique[client].PushString(buffer);

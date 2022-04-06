@@ -38,8 +38,8 @@ public any Native_GetInv(Handle plugin, int numParams)
 	{
 		UniqueEnum unique;
 		UniqueList.GetArray(-1-index, unique);
-		SetNativeCellRef(3, unique.Owner==client ? 0 : 1);
-		return unique.Owner==client ? false : unique.Equipped;
+		SetNativeCellRef(3, unique.Owner==client ? 1 : 0);
+		return unique.Owner==client ? unique.Equipped : false;
 	}
 
 	ItemEnum item;
