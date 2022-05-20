@@ -7,9 +7,12 @@
 
 #define PLUGIN_VERSION	"1.0.1"
 //#define DEBUG
+#define PLUGIN_VERSION	"1.1"
+#define DEBUG
 
 ConVar CvarBackup;
 Database DataBase;
+bool IgnoreLoad;
 ArrayList LastItems[MAXPLAYERS];
 ArrayList LastUnique[MAXPLAYERS];
 
@@ -86,6 +89,9 @@ public Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
 	#if defined DEBUG
 	PrintToServer("TextStore_OnClientLoad");
 	#endif
+	
+	if(IgnoreLoad)
+		return Plugin_Continue;
 	
 	if(LastItems[client])
 	{
@@ -205,7 +211,16 @@ public void Database_ClientSetup(Database db, any userid, int numQueries, DBResu
 			
 			#if defined DEBUG
 			PrintToConsole(client, "Inserting");
-			#endif		
+			#endif
+			
+			IgnoreLoad = true;
+			TextStore_ClientReload(client);
+			IgnoreLoad = false;
+			
+			if(TextStore_GetClientLoad(client))
+				TextStore_OnClientSave(client, "");
+			
+			return;
 		}
 		else
 		{
@@ -256,7 +271,7 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 	PrintToServer("TextStore_OnClientSave");
 	#endif
 	
-	if(DataBase)
+	if(DataBase && LastItems[client])
 	{
 		int id = GetSteamAccountID(client);
 		if(!id)

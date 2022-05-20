@@ -171,7 +171,9 @@ public any Native_GetItems(Handle plugin, int numParams)
 	if(Items == INVALID_HANDLE)
 		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
 
-	SetNativeCellRef(1, UniqueList.Length);
+	if(numParams)
+		SetNativeCellRef(1, UniqueList.Length);
+
 	return Items.Length;
 }
 
