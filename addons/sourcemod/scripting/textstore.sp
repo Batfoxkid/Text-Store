@@ -349,7 +349,7 @@ public void OnClientDisconnect(int client)
 	Unique_Disconnect(client);
 }
 
-bool SaveClient(int client)
+void SaveClient(int client)
 {
 	static char buffer[PLATFORM_MAX_PATH];
 	if(GetClientAuthId(client, AuthId_SteamID64, buffer, sizeof(buffer)))

@@ -5,10 +5,8 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.0.1"
 //#define DEBUG
 #define PLUGIN_VERSION	"1.1"
-#define DEBUG
 
 ConVar CvarBackup;
 Database DataBase;
