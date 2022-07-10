@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.2.3"
+#define PLUGIN_VERSION	"1.2.4"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -438,6 +438,12 @@ public Action CommandMain(int client, int args)
 		return Plugin_Handled;
 	}
 
+	if(!Client[client].Ready)
+	{
+		ReplyToCommand(client, "[SM] Your inventory isn't loaded yet");
+		return Plugin_Handled;
+	}
+
 	//Client[client].StoreType = Type_Main;
 	Main(client);
 	return Plugin_Handled;
@@ -450,6 +456,13 @@ public Action CommandStore(int client, int args)
 		ReplyToCommand(client, "[SM] %t", "Command is in-game only");
 		return Plugin_Handled;
 	}
+
+	if(!Client[client].Ready)
+	{
+		ReplyToCommand(client, "[SM] Your inventory isn't loaded yet");
+		return Plugin_Handled;
+	}
+
 
 	Client[client].BackOutAdmin = (args==-1);
 	if(Client[client].StoreType != Type_Store)
@@ -469,6 +482,13 @@ public Action CommandInven(int client, int args)
 		ReplyToCommand(client, "[SM] %t", "Command is in-game only");
 		return Plugin_Handled;
 	}
+
+	if(!Client[client].Ready)
+	{
+		ReplyToCommand(client, "[SM] Your inventory isn't loaded yet");
+		return Plugin_Handled;
+	}
+
 
 	Client[client].BackOutAdmin = (args==-1);
 	if(Client[client].StoreType != Type_Inven)

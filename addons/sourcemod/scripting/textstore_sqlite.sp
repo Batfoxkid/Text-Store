@@ -6,11 +6,14 @@
 #pragma newdecls required
 
 //#define DEBUG
-#define PLUGIN_VERSION	"1.1"
+#define PLUGIN_VERSION	"1.3"
 
 ConVar CvarBackup;
 Database DataBase;
 bool IgnoreLoad;
+bool InQuery;
+int QueryCount;
+bool DeleteConvert;
 ArrayList LastItems[MAXPLAYERS];
 ArrayList LastUnique[MAXPLAYERS];
 
@@ -24,6 +27,11 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
+	RegServerCmd("sm_textstore_convert", Command_Convert, "Trasnfer all existing TXT files to SQL");
+	RegServerCmd("sm_textstore_import", Command_Import, "Import a TXT file to SQL");
+	RegServerCmd("sm_textstore_check", Command_Check, "Checks data given a steamid");
+	RegServerCmd("sm_textstore_modify", Command_Modify, "Change data given a steamid");
+	
 	CvarBackup = CreateConVar("textstore_sql_hybrid", "0", "If to also save text files alongside SQL", _, true, 0.0, true, 1.0);
 	
 	char error[512];
@@ -115,17 +123,7 @@ public Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
 		FormatEx(buffer, sizeof(buffer), "SELECT * FROM misc_data WHERE steamid = %d;", id);
 		tr.AddQuery(buffer);
 		
-		FormatEx(buffer, sizeof(buffer), "SELECT * FROM common_items WHERE steamid = %d;", id);
-		tr.AddQuery(buffer);
-		
-		FormatEx(buffer, sizeof(buffer), "SELECT * FROM unique_items WHERE steamid = %d;", id);
-		tr.AddQuery(buffer);
-		
-		DataBase.Execute(tr, Database_ClientSetup, Database_ClientRetry, GetClientUserId(client));
-		
-		#if defined DEBUG
-		PrintToConsole(client, "Started");
-		#endif
+		AddToQueryQueue(tr, Database_ClientSetup1, Database_Fail, GetClientUserId(client));
 	}
 	else if(CvarBackup.BoolValue)
 	{
@@ -135,45 +133,12 @@ public Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
 	return Plugin_Stop;
 }
 
-public void Database_ClientRetry(Database db, any userid, int numQueries, const char[] error, int failIndex, any[] queryData)
+public void Database_ClientSetup1(Database db, any userid, int numQueries, DBResultSet[] results, any[] queryData)
 {
-	#if defined DEBUG
-	PrintToServer("Database_ClientRetry");
-	#endif
+	InQuery = false;
 	
-	int client = GetClientOfUserId(userid);
-	if(client)
-	{
-		int id = GetSteamAccountID(client);
-		if(id)
-		{
-			Transaction tr = new Transaction();
-			
-			char buffer[256];
-			FormatEx(buffer, sizeof(buffer), "SELECT * FROM misc_data WHERE steamid = %d;", id);
-			tr.AddQuery(buffer);
-			
-			FormatEx(buffer, sizeof(buffer), "SELECT * FROM common_items WHERE steamid = %d;", id);
-			tr.AddQuery(buffer);
-			
-			FormatEx(buffer, sizeof(buffer), "SELECT * FROM unique_items WHERE steamid = %d;", id);
-			tr.AddQuery(buffer);
-			
-			DataBase.Execute(tr, Database_ClientSetup, Database_ClientRetry, userid);
-			
-			#if !defined DEBUG
-			return;
-			#endif
-		}
-	}
-	
-	LogError(error);
-}
-
-public void Database_ClientSetup(Database db, any userid, int numQueries, DBResultSet[] results, any[] queryData)
-{
 	#if defined DEBUG
-	PrintToServer("Database_ClientSetup");
+	PrintToServer("Database_ClientSetup1");
 	#endif
 	
 	int client = GetClientOfUserId(userid);
@@ -189,13 +154,10 @@ public void Database_ClientSetup(Database db, any userid, int numQueries, DBResu
 		
 		LastUnique[client] = new ArrayList(ByteCountToCells(48));
 		
-		static char item[48], name[48], data[256];
+		static char data[256];
 		if(results[0].FetchRow())
 		{
 			int cash = results[0].FetchInt(1) - TextStore_Cash(client);
-			#if defined DEBUG
-			PrintToConsole(client, "Cash = %d", cash);
-			#endif
 			TextStore_Cash(client, cash);
 		}
 		else if(!results[0].MoreRows)
@@ -205,11 +167,7 @@ public void Database_ClientSetup(Database db, any userid, int numQueries, DBResu
 			Format(data, sizeof(data), "INSERT INTO misc_data (steamid) VALUES (%d)", GetSteamAccountID(client));
 			tr.AddQuery(data);
 			
-			DataBase.Execute(tr, Database_Success, Database_Fail);
-			
-			#if defined DEBUG
-			PrintToConsole(client, "Inserting");
-			#endif
+			AddToQueryQueue(tr, Database_Success, Database_Fail);
 			
 			IgnoreLoad = true;
 			TextStore_ClientReload(client);
@@ -225,39 +183,77 @@ public void Database_ClientSetup(Database db, any userid, int numQueries, DBResu
 			ThrowError("Unable to fetch first row");
 		}
 		
-		while(results[1].MoreRows)
+		int id = GetSteamAccountID(client);
+		if(id)
 		{
-			if(results[1].FetchRow())
+			Transaction tr = new Transaction();
+			
+			Format(data, sizeof(data), "SELECT * FROM common_items WHERE steamid = %d;", id);
+			tr.AddQuery(data);
+			
+			AddToQueryQueue(tr, Database_ClientSetup2, Database_Fail, GetClientUserId(client));
+		}
+	}
+}
+
+public void Database_ClientSetup2(Database db, any userid, int numQueries, DBResultSet[] results, any[] queryData)
+{
+	InQuery = false;
+	
+	#if defined DEBUG
+	PrintToServer("Database_ClientSetup2");
+	#endif
+	
+	int client = GetClientOfUserId(userid);
+	if(client)
+	{
+		while(results[0].MoreRows)
+		{
+			if(results[0].FetchRow())
 			{
-				results[1].FetchString(1, item, sizeof(item));
-				
-				#if defined DEBUG
-				PrintToConsole(client, item);
-				#endif
-				
-				GiveNamedItem(client, item, results[1].FetchInt(2), view_as<bool>(results[1].FetchInt(3)));
+				static char item[48];
+				results[0].FetchString(1, item, sizeof(item));
+				GiveNamedItem(client, item, results[0].FetchInt(2), view_as<bool>(results[0].FetchInt(3)));
 			}
 		}
 		
-		while(results[2].MoreRows)
+		int id = GetSteamAccountID(client);
+		if(id)
 		{
-			if(results[2].FetchRow())
+			Transaction tr = new Transaction();
+			
+			char buffer[256];
+			FormatEx(buffer, sizeof(buffer), "SELECT * FROM unique_items WHERE steamid = %d;", id);
+			tr.AddQuery(buffer);
+			
+			AddToQueryQueue(tr, Database_ClientSetup3, Database_Fail, GetClientUserId(client));
+		}
+	}
+}
+
+public void Database_ClientSetup3(Database db, any userid, int numQueries, DBResultSet[] results, any[] queryData)
+{
+	InQuery = false;
+	
+	#if defined DEBUG
+	PrintToServer("Database_ClientSetup3");
+	#endif
+	
+	int client = GetClientOfUserId(userid);
+	if(client)
+	{
+		while(results[0].MoreRows)
+		{
+			if(results[0].FetchRow())
 			{
-				results[2].FetchString(1, item, sizeof(item));
-				results[2].FetchString(2, name, sizeof(name));
-				results[2].FetchString(4, data, sizeof(data));
+				static char item[48], name[48], data[256];
+				results[0].FetchString(1, item, sizeof(item));
+				results[0].FetchString(2, name, sizeof(name));
+				results[0].FetchString(4, data, sizeof(data));
 				
-				#if defined DEBUG
-				PrintToConsole(client, "%s | %s | %s", item, name, data);
-				#endif
-				
-				GiveNamedUnique(client, item, name, view_as<bool>(results[2].FetchInt(3)), data);
+				GiveNamedUnique(client, item, name, view_as<bool>(results[0].FetchInt(3)), data);
 			}
 		}
-		
-		#if defined DEBUG
-		PrintToConsole(client, "Loaded");
-		#endif
 		
 		TextStore_SetClientLoad(client, true);
 	}
@@ -265,6 +261,8 @@ public void Database_ClientSetup(Database db, any userid, int numQueries, DBResu
 
 public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 {
+	InQuery = false;
+	
 	#if defined DEBUG
 	PrintToServer("TextStore_OnClientSave");
 	#endif
@@ -281,7 +279,7 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 		Format(buffer, sizeof(buffer), "UPDATE misc_data SET cash = %d WHERE steamid = %d;", TextStore_Cash(client), id);
 		tr.AddQuery(buffer);
 		
-		DataBase.Execute(tr, Database_Success, Database_Fail);
+		AddToQueryQueue(tr, Database_Success, Database_Fail);
 		
 		tr = new Transaction();
 		
@@ -300,10 +298,6 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 					TextStore_GetItemName(i, buffer, sizeof(buffer));
 					DataBase.Format(buffer, sizeof(buffer), "INSERT INTO common_items (steamid, item, count, equip) VALUES ('%d', '%s', '%d', '%d')", id, buffer, amount, equipped);
 					
-					#if defined DEBUG
-					PrintToConsole(client, buffer);
-					#endif
-					
 					tr.AddQuery(buffer);
 					list.Push(i);
 				}
@@ -313,10 +307,6 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 				TextStore_GetItemName(i, buffer, sizeof(buffer));
 				DataBase.Format(buffer, sizeof(buffer), "UPDATE common_items SET count = '%d', equip = '%d' WHERE steamid = %d AND item = '%s';", amount, equipped, id, buffer);
 				
-				#if defined DEBUG
-				PrintToConsole(client, buffer);
-				#endif
-				
 				tr.AddQuery(buffer);
 				list.Push(i);
 			}
@@ -325,15 +315,11 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 				TextStore_GetItemName(i, buffer, sizeof(buffer));
 				DataBase.Format(buffer, sizeof(buffer), "DELETE FROM common_items WHERE steamid = %d AND item = '%s';", id, buffer);
 				
-				#if defined DEBUG
-				PrintToConsole(client, buffer);
-				#endif
-				
 				tr.AddQuery(buffer);
 			}
 		}
 		
-		DataBase.Execute(tr, Database_Success, Database_Fail);
+		AddToQueryQueue(tr, Database_Success, Database_Fail);
 		
 		delete LastItems[client];
 		LastItems[client] = list;
@@ -352,10 +338,6 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 					LastUnique[client].GetString(i, buffer, sizeof(buffer));
 					DataBase.Format(buffer, sizeof(buffer), "DELETE FROM unique_items WHERE steamid = %d AND item = '%s';", id, buffer);
 					
-					#if defined DEBUG
-					PrintToConsole(client, buffer);
-					#endif
-					
 					tr.AddQuery(buffer);
 				}
 				
@@ -364,10 +346,6 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 			else
 			{
 				FormatEx(buffer, sizeof(buffer), "DELETE FROM unique_items WHERE steamid = %d;", id);
-				
-				#if defined DEBUG
-				PrintToConsole(client, buffer);
-				#endif
 				
 				tr.AddQuery(buffer);
 			}
@@ -390,13 +368,9 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 						
 						DataBase.Format(buffer, sizeof(buffer), "INSERT INTO unique_items (steamid, item, name, equip, data) VALUES ('%d', '%s', '%s', '%d', '%s')", id, item, name, equipped, buffer);
 						
-						#if defined DEBUG
-						PrintToConsole(client, buffer);
-						#endif
-						
 						tr.AddQuery(buffer);
 						
-						LastUnique[client].PushString(buffer);
+						LastUnique[client].PushString(item);
 					}
 					else
 					{
@@ -405,7 +379,7 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 				}
 			}
 			
-			DataBase.Execute(tr, Database_Success, Database_Fail);
+			AddToQueryQueue(tr, Database_Success, Database_Fail);
 		}
 		
 		if(!CvarBackup.BoolValue)
@@ -414,8 +388,224 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 	return Plugin_Continue;
 }
 
+public Action Command_Convert(int args)
+{
+	if(args == 1)
+	{
+		char filepath[PLATFORM_MAX_PATH];
+		GetCmdArg(1, filepath, sizeof(filepath));
+		
+		DeleteConvert = StringToInt(filepath) == 1;
+		
+		BuildPath(Path_SM, filepath, sizeof(filepath), "data/textstore/user");
+		DirectoryListing dir = OpenDirectory(filepath);
+		if(dir)
+		{
+			CreateTimer(1.0, Timer_Convert, dir, TIMER_REPEAT);
+		}
+		else
+		{
+			PrintToServer("Could not open '%s'", filepath);
+		}
+	}
+	else
+	{
+		PrintToServer("[SM] Usage: sm_textstore_convert <0/1 if to delete files on success>");
+	}
+	return Plugin_Handled;
+}
+
+public Action Command_Import(int args)
+{
+	if(args == 1)
+	{
+		char filename[512];
+		GetCmdArg(1, filename, sizeof(filename));
+		
+		int steamid;
+		if(GetSteam32FromSteam64(filename, steamid))
+		{
+			BuildPath(Path_SM, filename, sizeof(filename), "data/textstore/user/%s.txt", filename);
+			File file = OpenFile(filename, "r");
+			if(file)
+			{
+				PrintToServer("Imported %d items", PortFileToSQL(file, steamid));
+				delete file;
+			}
+			else
+			{
+				PrintToServer("Could not open '%s'", filename);
+			}
+		}
+		else
+		{
+			PrintToServer("Invalid Steam64 ID");
+		}
+	}
+	else
+	{
+		PrintToServer("[SM] Usage: sm_textstore_import <Steam64 ID>");
+	}
+	return Plugin_Handled;
+}
+
+public Action Command_Check(int args)
+{
+	if(args == 1)
+	{
+		char buffer[256];
+		GetCmdArg(1, buffer, sizeof(buffer));
+		int id = StringToInt(buffer);
+		
+		Transaction tr = new Transaction();
+		
+		FormatEx(buffer, sizeof(buffer), "SELECT * FROM misc_data WHERE steamid = %d;", id);
+		tr.AddQuery(buffer);
+		
+		AddToQueryQueue(tr, Database_Check1, Database_FailPrint, id);
+	}
+	else
+	{
+		PrintToServer("[SM] Usage: sm_textstore_check <Steam32 ID>");
+	}
+	return Plugin_Handled;
+}
+
+public void Database_Check1(Database db, any id, int numQueries, DBResultSet[] results, any[] queryData)
+{
+	InQuery = false;
+	
+	if(results[0].FetchRow())
+	{
+		PrintToServer("Cash: %d", results[0].FetchInt(1));
+		
+		Transaction tr = new Transaction();
+		
+		char buffer[256];
+		Format(buffer, sizeof(buffer), "SELECT * FROM common_items WHERE steamid = %d;", id);
+		tr.AddQuery(buffer);
+		
+		AddToQueryQueue(tr, Database_Check2, Database_FailPrint, id);
+	}
+	else
+	{
+		PrintToServer("No entry for %d", id);
+	}
+}
+
+public void Database_Check2(Database db, any id, int numQueries, DBResultSet[] results, any[] queryData)
+{
+	InQuery = false;
+	
+	char buffer[256];
+	while(results[0].MoreRows)
+	{
+		if(results[0].FetchRow())
+		{
+			results[0].FetchString(1, buffer, sizeof(buffer));
+			PrintToServer("%s: %d%s", buffer, results[0].FetchInt(2), results[0].FetchInt(3) ? " (Equipped)" : "");
+		}
+	}
+	
+	Transaction tr = new Transaction();
+			
+	FormatEx(buffer, sizeof(buffer), "SELECT * FROM unique_items WHERE steamid = %d;", id);
+	tr.AddQuery(buffer);
+	
+	AddToQueryQueue(tr, Database_Check3, Database_FailPrint, id);
+}
+
+public void Database_Check3(Database db, any id, int numQueries, DBResultSet[] results, any[] queryData)
+{
+	InQuery = false;
+	
+	char item[48], name[48], data[256];
+	while(results[0].MoreRows)
+	{
+		if(results[0].FetchRow())
+		{
+			results[0].FetchString(1, item, sizeof(item));
+			results[0].FetchString(2, name, sizeof(name));
+			results[0].FetchString(4, data, sizeof(data));
+			
+			PrintToServer("%s: '%s' '%s'%s", item, name, data, results[0].FetchInt(3) ? " (Equipped)" : "");
+		}
+	}
+}
+
+public Action Command_Modify(int args)
+{
+	if(args > 2 && args < 7)
+	{
+		char buffer[512];
+		GetCmdArg(1, buffer, sizeof(buffer));
+		int id = StringToInt(buffer);
+		
+		char item[64];
+		GetCmdArg(2, item, sizeof(item));
+		
+		GetCmdArg(3, buffer, sizeof(buffer));
+		int amount = StringToInt(buffer);
+		
+		DataBase.Format(buffer, sizeof(buffer), "INSERT INTO common_items (steamid, item, count, equip) VALUES ('%d', '%s', '1', '0')", id, item);
+		
+		int equip;
+		if(args > 3)
+		{
+			GetCmdArg(4, buffer, sizeof(buffer));
+			equip = StringToInt(buffer);
+		}
+		
+		Transaction tr = new Transaction();
+		
+		if(args > 4)
+		{
+			GetCmdArg(5, buffer, sizeof(buffer));
+			
+			char name[64];
+			GetCmdArg(6, name, sizeof(name));
+			
+			if(amount > 0)
+			{
+				DataBase.Format(buffer, sizeof(buffer), "INSERT INTO unique_items (steamid, item, name, equip, data) VALUES ('%d', '%s', '%s', '%s', '%s')", id, item, name, equip, buffer);
+			}
+			else if(args > 5)
+			{
+				DataBase.Format(buffer, sizeof(buffer), "DELETE FROM unique_items WHERE steamid = %d AND item = '%s' AND name = '%s';", id, item, name);
+			}
+			else
+			{
+				DataBase.Format(buffer, sizeof(buffer), "DELETE FROM unique_items WHERE steamid = %d AND item = '%s' AND data = '%s';", id, item, buffer);
+			}
+			
+			tr.AddQuery(buffer);
+		}
+		else
+		{
+			DataBase.Format(buffer, sizeof(buffer), "DELETE FROM common_items WHERE steamid = %d AND item = '%s';", id, item);
+			tr.AddQuery(buffer);
+			
+			if(amount > 0)
+			{
+				DataBase.Format(buffer, sizeof(buffer), "INSERT INTO common_items (steamid, item, count, equip) VALUES ('%d', '%s', '%d', '%d')", id, item, amount, equip);
+				tr.AddQuery(buffer);
+			}
+		}
+		
+		AddToQueryQueue(tr, Database_Success, Database_FailPrint, id);
+		PrintToServer(buffer);
+	}
+	else
+	{
+		PrintToServer("[SM] Usage: sm_textstore_modify <Steam32 ID> <Item Name> <Amount> [Equipped] [Data] [Name]");
+	}
+	return Plugin_Handled;
+}
+
 public void Database_Success(Database db, any data, int numQueries, DBResultSet[] results, any[] queryData)
 {
+	InQuery = false;
+	
 	#if defined DEBUG
 	PrintToServer("Database_Success");
 	#endif
@@ -423,11 +613,73 @@ public void Database_Success(Database db, any data, int numQueries, DBResultSet[
 
 public void Database_Fail(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)
 {
+	InQuery = false;
+	
 	#if defined DEBUG
 	PrintToServer("Database_Fail");
 	#endif
 	
 	LogError(error);
+}
+
+public void Database_FailPrint(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)
+{
+	InQuery = false;
+	PrintToServer(error);
+}
+
+public Action Timer_Convert(Handle timer, DirectoryListing dir)
+{
+	if(QueryCount > 10)
+		return Plugin_Continue;
+	
+	FileType type;
+	char filename[512];
+	if(!dir.GetNext(filename, sizeof(filename), type))
+	{
+		delete dir;
+		PrintToServer("> Finished querying TXT to SQL <");
+		return Plugin_Stop;
+	}
+	
+	char filepath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, filepath, sizeof(filepath), "data/textstore/user");
+	
+	if(type == FileType_File)
+	{
+		if(ReplaceString(filename, sizeof(filename), ".txt", ""))
+		{
+			int steamid;
+			if(GetSteam32FromSteam64(filename, steamid))
+			{
+				Format(filename, sizeof(filename), "%s/%s.txt", filepath, filename);
+				File file = OpenFile(filename, "r");
+				if(file)
+				{
+					PrintToServer("Processing '%s'", filename);
+					
+					PortFileToSQL(file, steamid);
+					delete file;
+					
+					if(DeleteConvert)
+						DeleteFile(filename);
+				}
+				else
+				{
+					PrintToServer("> Could not open '%s' <", filename);
+				}
+			}
+			else
+			{
+				PrintToServer("> Failed to get steamid of '%s' <", filename);
+			}
+		}
+		else
+		{
+			PrintToServer("> Invalid file '%s' <", filename);
+		}
+	}
+	return Plugin_Continue;
 }
 
 void GiveNamedItem(int client, const char[] item, int amount, bool equipped)
@@ -476,6 +728,233 @@ void GiveNamedUnique(int client, const char[] item, const char[] name, bool equi
 			break;
 		}
 	}
+}
+
+int PortFileToSQL(File file, int steamid)
+{
+	Transaction common, unique;
+	
+	int found;
+	char buffer[512];
+	char buffers[4][256];
+	while(!file.EndOfFile() && file.ReadLine(buffer, sizeof(buffer)))
+	{
+		ReplaceString(buffer, sizeof(buffer), "\n", "");
+		int count = ExplodeString(buffer, ";", buffers, sizeof(buffers), sizeof(buffers[]));
+		if(count < 2)
+			continue;
+		
+		found++;
+		if(StrEqual(buffers[0], "cash"))
+		{
+			Transaction tr = new Transaction();
+			
+			Format(buffer, sizeof(buffer), "DELETE FROM misc_data WHERE steamid = %d;", steamid);
+			tr.AddQuery(buffer);
+			
+			Format(buffer, sizeof(buffer), "INSERT INTO misc_data (steamid, cash) VALUES ('%d', '%d')", steamid, StringToInt(buffers[1]));
+			tr.AddQuery(buffer);
+			
+			AddToQueryQueue(tr, Database_Success, Database_FailPrint, steamid);
+		}
+		else if(count > 3)
+		{
+			if(!unique)
+			{
+				unique = new Transaction();
+				
+				Format(buffer, sizeof(buffer), "DELETE FROM unique_items WHERE steamid = %d;", steamid);
+				unique.AddQuery(buffer);
+			}
+			
+			DataBase.Format(buffer, sizeof(buffer), "INSERT INTO unique_items (steamid, item, name, equip, data) VALUES ('%d', '%s', '%s', '%s', '%s')", steamid, buffers[0], buffers[1], buffers[2], buffers[3]);
+			unique.AddQuery(buffer);
+		}
+		else
+		{
+			if(!common)
+			{
+				common = new Transaction();
+				
+				Format(buffer, sizeof(buffer), "DELETE FROM common_items WHERE steamid = %d;", steamid);
+				common.AddQuery(buffer);
+			}
+			
+			DataBase.Format(buffer, sizeof(buffer), "INSERT INTO common_items (steamid, item, count, equip) VALUES ('%d', '%s', '%s', '%s')", steamid, buffers[0], buffers[1], buffers[2]);
+			common.AddQuery(buffer);
+		}
+	}
+					
+	if(common)
+		AddToQueryQueue(common, Database_Success, Database_FailPrint, steamid);
+					
+	if(unique)
+		AddToQueryQueue(unique, Database_Success, Database_FailPrint, steamid);
+	
+	return found;
+}
+
+/*
+	https://github.com/alliedmodders/sourcemod/issues/1505
+*/
+
+void AddToQueryQueue(Transaction tr, SQLTxnSuccess onSuccess = INVALID_FUNCTION, SQLTxnFailure onError = INVALID_FUNCTION, any data = 0, DBPriority priority = DBPrio_Normal)
+{
+	QueryCount++;
+	
+	#if defined DEBUG
+	PrintToServer("Timer_QueryQueue -> New Added");
+	#endif
+	
+	DataPack pack;
+	CreateDataTimer(0.3, Timer_QueryQueue, pack, TIMER_REPEAT);
+	pack.WriteCell(tr);
+	pack.WriteFunction(onSuccess);
+	pack.WriteFunction(onError);
+	pack.WriteCell(data);
+	pack.WriteCell(priority);
+}
+
+public Action Timer_QueryQueue(Handle timer, DataPack pack)
+{
+	#if defined DEBUG
+	PrintToServer("Timer_QueryQueue -> Pending");
+	#endif
+	
+	if(InQuery)
+		return Plugin_Continue;
+	
+	QueryCount--;
+	
+	InQuery = true;
+	pack.Reset();
+	Transaction tr = pack.ReadCell();
+	SQLTxnSuccess onSuccess = view_as<SQLTxnSuccess>(pack.ReadFunction());
+	SQLTxnFailure onError = view_as<SQLTxnFailure>(pack.ReadFunction());
+	any data = pack.ReadCell();
+	
+	#if defined DEBUG
+	PrintToServer("Timer_QueryQueue -> Started New | %x %d %d", tr, view_as<int>(onSuccess), view_as<int>(onError));
+	#endif
+	
+	DataBase.Execute(tr, onSuccess, onError, data, pack.ReadCell());
+	return Plugin_Stop;
+}
+
+/*
+	https://forums.alliedmods.net/showthread.php?t=60899&page=36
+*/
+
+stock bool GetSteam32FromSteam64(const char[] szSteam64Original, int &iSteam32)
+{
+	char szSteam32[20];
+	char szSteam64[20];
+	
+	// We don't want to actually edit the original string.
+	// We make a new string for the editing.
+	strcopy(szSteam64, sizeof szSteam64, szSteam64Original);
+	
+	// Remove the first three numbers
+	ReplaceStringEx(szSteam64, sizeof(szSteam64), "765", "");
+	
+	// Because pawn does not support numbers bigger than 2147483647, we will need to subtract using a combination of numbers.
+	// The combination can be
+	// 1 number to max integers
+	char szSubtractionString[] = "61197960265728";
+	
+	// First integer is the integer from szSteam64
+	// Second is from the subtraction string szSubtractionString
+	char szFirstInteger[11], szSecondInteger[11];
+	int iFirstInteger, iSecondInteger;
+	
+	char szResultInt[11];
+	
+	// Ugly hack
+	// Make the strings 00000000000 so when we use StringToInt the zeroes won't affect the result
+	// sizeof - 1 because we need the last End of string (0) byte;
+	SetStringZeros(szFirstInteger, sizeof(szFirstInteger), sizeof(szFirstInteger) - 1);
+	SetStringZeros(szSecondInteger, sizeof(szSecondInteger), sizeof(szSecondInteger) - 1);
+
+	// Start from the end of the string, because subtraction should always start from the first number in the right.
+	int iResultInt;
+	
+	int iSteam64Position = strlen(szSteam64);
+	int iIntegerPosition = strlen(szFirstInteger);
+	
+	int iNumCount;
+	int iResultLen;
+	char szStringZeroes[11];
+	
+	while(--iSteam64Position > -1)
+	{
+		iIntegerPosition -= 1;
+		
+		++iNumCount;
+		szFirstInteger[iIntegerPosition] = szSteam64[iSteam64Position];
+		szSecondInteger[iIntegerPosition] = szSubtractionString[iSteam64Position];
+		
+		iFirstInteger = StringToInt(szFirstInteger);
+		iSecondInteger = StringToInt(szSecondInteger);
+			
+		// Can we subtract without getting a negative number?
+		if(iFirstInteger >= iSecondInteger)
+		{
+			iResultInt = iFirstInteger - iSecondInteger;
+			// 69056897
+			if(iResultInt)
+			{
+				IntToString(iResultInt, szResultInt, sizeof szResultInt);
+				
+				if( iNumCount != (iResultLen  = strlen(szResultInt) ) )
+				{
+					SetStringZeros(szStringZeroes, sizeof szStringZeroes, iNumCount - iResultLen);
+				}
+				
+				else
+				{
+					szStringZeroes = "";
+				}
+			}
+			
+			else
+			{
+				szResultInt = "";
+				
+				SetStringZeros(szStringZeroes, sizeof szStringZeroes, iNumCount);
+			}
+			
+			Format(szSteam32, sizeof szSteam32, "%s%s%s", szStringZeroes, szResultInt, szSteam32);
+			
+			// Reset our stuff.
+			SetStringZeros(szFirstInteger, sizeof(szFirstInteger), sizeof(szFirstInteger) - 1);
+			SetStringZeros(szSecondInteger, sizeof(szSecondInteger), sizeof(szSecondInteger) - 1);
+			
+			iIntegerPosition = strlen(szFirstInteger);
+			iNumCount = 0;
+		}
+		
+		if(iIntegerPosition - 1 < 0)
+		{
+			// We failed, and this calculation can not be done in pawn.
+			return false;
+		}
+		
+		// if not, lets add more numbers.
+	}
+	
+	iSteam32 = StringToInt(szSteam32);
+	return true;
+}
+
+stock void SetStringZeros(char[] szString, int iSize, int iNumZeros)
+{
+	int i;
+	for(i = 0; i < iNumZeros && i < iSize; i++)
+	{
+		szString[i] = '0';
+	}
+	
+	szString[i] = 0;
 }
 
 #file "Text Store: SQLite"

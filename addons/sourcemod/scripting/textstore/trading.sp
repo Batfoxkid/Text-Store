@@ -154,6 +154,12 @@ public Action Trading_Command(int client, int args)
 		return Plugin_Handled;
 	}
 
+	if(!Client[client].Ready)
+	{
+		ReplyToCommand(client, "[SM] Your inventory isn't loaded yet");
+		return Plugin_Handled;
+	}
+
 	Client[client].BackOutAdmin = (args==-1);
 	Trading(client);
 	return Plugin_Handled;
