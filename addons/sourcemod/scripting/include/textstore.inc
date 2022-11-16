@@ -217,6 +217,16 @@ forward Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH]);
 forward Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH]);
 
 /**
+ * Called when a client enters the main menu
+ *
+ * @param client	Client index
+ * @param menu		Menu handle, don't close this handle
+ *
+ * @return		Plugin_Handled/Plugin_Stop to prevent the menu from showing
+ */
+forward Action TextStore_OnMainMenu(int client, Menu menu);
+
+/**
  * Called to a given plugin when a item is used
  *
  * @note		This is not actually a forward, this is called per plugin
