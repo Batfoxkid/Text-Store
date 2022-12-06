@@ -22,7 +22,7 @@ enum ItemResult
  * @param client	Client index of using item
  * @param item		Index of the item
  * @param count		Amount of the item
- * @param item		If to force unequip or equip the item
+ * @param equip		If to force unequip or equip the item
  *
  * @noreturn
  */
@@ -82,7 +82,7 @@ native bool TextStore_GetClientLoad(int client);
  * @param client	Client index
  * @param status	If the player is considered loaded
  *
- * @@noreturn
+ * @noreturn
  */
 native void TextStore_SetClientLoad(int client, bool status);
 
@@ -162,7 +162,7 @@ native void TextStore_SetItemData(int item, const char[] data);
 native int TextStore_CreateUniqueItem(int client, int item, const char[] data, const char[] name="", bool equipped=false);
 
 /**
- * Creates a unique variant of an item
+ * Activates an item from the client
  *
  * @param client	Client index
  * @param item		Item index
