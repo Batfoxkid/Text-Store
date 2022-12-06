@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.2.4"
+#define PLUGIN_VERSION	"1.2.5"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -662,16 +662,22 @@ void Main(int client)
 	Menu menu = new Menu(MainH);
 	menu.SetTitle("Main Menu\n \nCredits: %d\n ", Client[client].Cash);
 
-	menu.AddItem("0", "Store");
-	menu.AddItem("1", "Inventory");
+	menu.AddItem("1", "Store");
+	menu.AddItem("2", "Inventory");
 
 	if(Crafts)
-		menu.AddItem("3", "Crafting");
+		menu.AddItem("4", "Crafting");
 
-	menu.AddItem("4", "Trading");
+	menu.AddItem("5", "Trading");
+
+	if(Forward_OnMainMenu(client, menu) >= Plugin_Handled)
+	{
+		delete menu;
+		return;
+	}
 
 	if(CheckCommandAccess(client, "sm_store_admin", ADMFLAG_ROOT))
-		menu.AddItem("2", "Admin Menu");
+		menu.AddItem("3", "Admin Menu");
 
 	menu.ExitButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -687,24 +693,27 @@ public int MainH(Menu menu, MenuAction action, int client, int choice)
 		}
 		case MenuAction_Select:
 		{
-			static char buffer[MAX_NUM_LENGTH];
+			static char buffer[64];
 			menu.GetItem(choice, buffer, sizeof(buffer));
 			switch(StringToInt(buffer))
 			{
 				case 1:
+					CommandStore(client, 0);
+				
+				case 2:
 					CommandInven(client, 0);
 
-				case 2:
+				case 3:
 					CommandAdmin(client, 0);
 
-				case 3:
+				case 4:
 					Crafting_Command(client, 0);
 
-				case 4:
+				case 5:
 					Trading_Command(client, 0);
 
 				default:
-					CommandStore(client, 0);
+					FakeClientCommand(client, "buffer");
 			}
 		}
 	}
