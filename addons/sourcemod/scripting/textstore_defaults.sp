@@ -113,7 +113,7 @@ stock bool IsValidClient(int client, bool replaycheck=true)
 	return true;
 }
 
-stock void GetClassesFromString(const char[] buffer, bool classes[view_as<int>(TFClassType)])
+stock void GetClassesFromString(const char[] buffer, bool classes[10])
 {
 	classes[TFClass_Unknown] = StrContains(buffer, "mer", false)!=-1;
 	classes[TFClass_Scout] = StrContains(buffer, "sco", false)!=-1;
@@ -208,5 +208,3 @@ public void OnPostInventoryApplication(Event event, const char[] name, bool dont
 	TF2Items_OnPostInventoryApplication(event);
 	#endif
 }
-
-#file "Text Store: Defaults"

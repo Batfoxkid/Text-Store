@@ -956,5 +956,3 @@ stock void SetStringZeros(char[] szString, int iSize, int iNumZeros)
 	
 	szString[i] = 0;
 }
-
-#file "Text Store: SQLite"

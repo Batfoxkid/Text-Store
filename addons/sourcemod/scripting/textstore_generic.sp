@@ -154,5 +154,3 @@ stock void AddCash(int client, int amount)
 	if(amount)
 		TextStore_Cash(client, amount);
 }
-
-#file "Text Store: Generic Events"

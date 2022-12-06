@@ -674,7 +674,7 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 				}
 				default:
 				{
-					return;
+					return 0;
 				}
 			}
 
@@ -821,7 +821,7 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 					}
 
 					TradingInv(client);
-					return;
+					return 0;
 				}
 				case -2:
 				{
@@ -836,7 +836,7 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 					}
 
 					TradingInv(client);
-					return;
+					return 0;
 				}
 				case -1:
 				{
@@ -858,6 +858,7 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 			Trading(client);
 		}
 	}
+	return 0;
 }
 
 public int TradingInvH(Menu menu, MenuAction action, int client, int choice)
@@ -902,12 +903,13 @@ public int TradingInvH(Menu menu, MenuAction action, int client, int choice)
 			TradingInv(client);
 		}
 	}
+	return 0;
 }
 
 public int TradingItemH(Menu panel, MenuAction action, int client, int choice)
 {
 	if(action != MenuAction_Select)
-		return;
+		return 0;
 
 	if(IsValidClient(Client[client].Target))
 	{
@@ -959,11 +961,12 @@ public int TradingItemH(Menu panel, MenuAction action, int client, int choice)
 			{
 				Client[client].RemovePos();
 				TradingInv(client);
-				return;
+				return 0;
 			}
 		}
 	}
 	Trading(client);
+	return 0;
 }
 
 public int TradingExtraH(Menu menu, MenuAction action, int client, int choice)
@@ -977,7 +980,7 @@ public int TradingExtraH(Menu menu, MenuAction action, int client, int choice)
 		case MenuAction_Cancel:
 		{
 			if(choice != MenuCancel_ExitBack)
-				return;
+				return 0;
 
 			if(!Client[client].BackOutAdmin || !AdminMenu_Return(client))
 				Main(client);
@@ -1029,6 +1032,7 @@ public int TradingExtraH(Menu menu, MenuAction action, int client, int choice)
 			Trading(client);
 		}
 	}
+	return 0;
 }
 
 static bool CanTradeTo(int client, int target)

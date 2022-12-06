@@ -329,7 +329,7 @@ public int CraftingH(Menu menu, MenuAction action, int client, int choice)
 		case MenuAction_Cancel:
 		{
 			if(choice != MenuCancel_ExitBack)
-				return;
+				return 0;
 
 			if(Client[client].RemovePos())
 			{
@@ -350,12 +350,13 @@ public int CraftingH(Menu menu, MenuAction action, int client, int choice)
 			Crafting(client);
 		}
 	}
+	return 0;
 }
 
 public int CraftingItemH(Menu panel, MenuAction action, int client, int choice)
 {
 	if(action != MenuAction_Select)
-		return;
+		return 0;
 
 	switch(choice)
 	{
@@ -438,8 +439,9 @@ public int CraftingItemH(Menu panel, MenuAction action, int client, int choice)
 		case 10:
 		{
 			Client[client].RemovePos();
-			return;
+			return 0;
 		}
 	}
 	Crafting(client);
+	return 0;
 }

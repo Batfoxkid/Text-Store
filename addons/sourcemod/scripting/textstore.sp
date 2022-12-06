@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.2.5"
+#define PLUGIN_VERSION	"1.2.6"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -717,6 +717,7 @@ public int MainH(Menu menu, MenuAction action, int client, int choice)
 			}
 		}
 	}
+	return 0;
 }
 
 void Store(int client)
@@ -1071,7 +1072,7 @@ public int GeneralMenuH(Menu menu, MenuAction action, int client, int choice)
 		case MenuAction_Cancel:
 		{
 			if(choice != MenuCancel_ExitBack)
-				return;
+				return 0;
 
 			if(Client[client].RemovePos())
 			{
@@ -1092,6 +1093,7 @@ public int GeneralMenuH(Menu menu, MenuAction action, int client, int choice)
 			ReturnStoreType(client);
 		}
 	}
+	return 0;
 }
 
 void ViewItem(int client, int index, ItemEnum item)
@@ -1162,7 +1164,7 @@ void ViewItem(int client, int index, ItemEnum item)
 public int ViewItemH(Menu panel, MenuAction action, int client, int choice)
 {
 	if(action != MenuAction_Select)
-		return;
+		return 0;
 
 	int index = Client[client].GetPos();
 	ItemEnum item;
@@ -1203,13 +1205,13 @@ public int ViewItemH(Menu panel, MenuAction action, int client, int choice)
 		{
 			ClientCommand(client, "playgamesound buttons/combine_button7.wav");
 			UniqueItem(client, index);
-			return;
+			return 0;
 		}
 		case 10:
 		{
 			ClientCommand(client, "playgamesound buttons/combine_button7.wav");
 			Client[client].RemovePos();
-			return;
+			return 0;
 		}
 		default:
 		{
@@ -1219,6 +1221,7 @@ public int ViewItemH(Menu panel, MenuAction action, int client, int choice)
 	}
 
 	ReturnStoreType(client);
+	return 0;
 }
 
 void ReturnStoreType(int client)
@@ -1326,5 +1329,3 @@ public Action Timer_AutoSave(Handle timer, int temp)
 	CreateTimer(10.0, Timer_AutoSave, client, TIMER_FLAG_NO_MAPCHANGE);
 	return Plugin_Continue;
 }
-
-#file "Text Store"

@@ -155,7 +155,7 @@ public int UniqueH(Menu menu, MenuAction action, int client, int choice)
 		case MenuAction_Cancel:
 		{
 			if(choice != MenuCancel_ExitBack)
-				return;
+				return 0;
 
 			ReturnStoreType(client);
 		}
@@ -169,12 +169,13 @@ public int UniqueH(Menu menu, MenuAction action, int client, int choice)
 			Unique(client);
 		}
 	}
+	return 0;
 }
 
 public int UniqueItemH(Menu panel, MenuAction action, int client, int choice)
 {
 	if(action != MenuAction_Select)
-		return;
+		return 0;
 
 	switch(choice)
 	{
@@ -208,7 +209,7 @@ public int UniqueItemH(Menu panel, MenuAction action, int client, int choice)
 						case Plugin_Handled, Plugin_Stop:
 						{
 							Unique(client);
-							return;
+							return 0;
 						}
 					}
 
@@ -226,10 +227,11 @@ public int UniqueItemH(Menu panel, MenuAction action, int client, int choice)
 		case 10:
 		{
 			Client[client].RemovePos();
-			return;
+			return 0;
 		}
 	}
 	Unique(client);
+	return 0;
 }
 
 bool Unique_UseItem(int client, int index, bool auto=false)
