@@ -68,18 +68,18 @@ public int Vote_UseH(Menu menu, MenuAction action, int choice, int param)
 		{
 			int client = GetClientOfUserId(VoteCaster);
 			if(!IsValidClient(client))
-				return;
+				return 0;
 
 			if(choice)
 			{
 				SPrintToChat(client, "Your item was not used up!");
-				return;
+				return 0;
 			}
 
 			int items;
 			TextStore_GetInv(client, VoteIndex, items);
 			if(items < 1)
-				return;
+				return 0;
 
 			TextStore_SetInv(client, VoteIndex, items-1, items==1 ? 0 : -1);
 			if(VoteMap)
@@ -90,6 +90,7 @@ public int Vote_UseH(Menu menu, MenuAction action, int choice, int param)
 			ServerCommand(VoteCommand);
 		}
 	}
+	return 0;
 }
 
 bool TestVoteDelay(int client)

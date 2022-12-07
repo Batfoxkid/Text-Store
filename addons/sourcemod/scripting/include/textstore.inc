@@ -227,6 +227,15 @@ forward Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH]);
 forward Action TextStore_OnMainMenu(int client, Menu menu);
 
 /**
+ * Called when a client is about to enter a store page
+ *
+ * @param client	Client index
+ *
+ * @noreturn
+ */
+forward void TextStore_OnCatalog(int client, Menu menu);
+
+/**
  * Called to a given plugin when a item is used
  *
  * @note		This is not actually a forward, this is called per plugin

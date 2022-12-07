@@ -666,7 +666,7 @@ public int TradingH(Menu menu, MenuAction action, int client, int choice)
 						menu2.AddItem("-2", "Yes");
 						menu2.AddItem("-1", "No");
 						menu2.Display(client, MENU_TIME_FOREVER);
-						return;
+						return 0;
 					}
 				}
 				case MenuCancel_ExitBack:

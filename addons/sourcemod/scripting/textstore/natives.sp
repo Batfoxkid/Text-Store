@@ -109,6 +109,7 @@ public any Native_SetInv(Handle plugin, int numParams)
 
 		Items.SetArray(index, item);
 	}
+	return 0;
 }
 
 public any Native_Cash(Handle plugin, int numParams)
@@ -134,6 +135,7 @@ public any Native_ClientSave(Handle plugin, int numParams)
 		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
 
 	SaveClient(client);
+	return 0;
 }
 
 public any Native_ClientReload(Handle plugin, int numParams)
@@ -146,6 +148,7 @@ public any Native_ClientReload(Handle plugin, int numParams)
 		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
 
 	SetupClient(client);
+	return 0;
 }
 
 public any Native_GetClientLoad(Handle plugin, int numParams)
@@ -164,6 +167,7 @@ public any Native_SetClientLoad(Handle plugin, int numParams)
 		ThrowNativeError(SP_ERROR_NATIVE, ERROR_CLIENTINDEX, client);
 
 	Client[client].Ready = GetNativeCell(2);
+	return 0;
 }
 
 public any Native_GetItems(Handle plugin, int numParams)
@@ -252,6 +256,7 @@ public any Native_SetItemName(Handle plugin, int numParams)
 	UniqueList.GetArray(index, unique);
 	GetNativeString(2, unique.Name, sizeof(unique.Name));
 	UniqueList.SetArray(index, unique);
+	return 0;
 }
 
 public any Native_GetItemData(Handle plugin, int numParams)
@@ -282,6 +287,7 @@ public any Native_SetItemData(Handle plugin, int numParams)
 	UniqueList.GetArray(index, unique);
 	GetNativeString(2, unique.Data, sizeof(unique.Data));
 	UniqueList.SetArray(index, unique);
+	return 0;
 }
 
 public any Native_NewUniqueItem(Handle plugin, int numParams)

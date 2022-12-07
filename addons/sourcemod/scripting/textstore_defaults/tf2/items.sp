@@ -48,7 +48,7 @@ stock ItemResult TF2Items_Use(int client, bool equipped, KeyValues item, int ind
 		static bool classes2[10];
 		kv.GetString("class", buffer2, sizeof(buffer2), DefaultClasses);
 		GetClassesFromString(buffer2, classes);
-		for(int c; c<view_as<int>(TFClassType); c++)
+		for(int c; c<sizeof(classes); c++)
 		{
 			if(!classes[c] || !classes2[c])
 				continue;

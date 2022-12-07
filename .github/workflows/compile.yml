@@ -14,7 +14,7 @@ jobs:
       
       - name: Environments
         run: |
-          echo "SM_VERSION=1.10" >> $GITHUB_ENV
+          echo "SM_VERSION=1.11" >> $GITHUB_ENV
       
       - name: Install
         run: |
@@ -26,5 +26,5 @@ jobs:
           ./spcomp -E textstore.sp -o ../plugins/textstore.smx
           ./spcomp -E textstore_defaults.sp -o ../plugins/textstore_defaults.smx
           ./spcomp -E textstore_generic.sp -o ../plugins/textstore_generic.smx
-          ./spcomp -E textstore_sqlite.sp -o ../plugins/textstore_sqlite.smx
+          ./spcomp textstore_sqlite.sp -o ../plugins/textstore_sqlite.smx
           ./spcomp -E textstore_tf2.sp -o ../plugins/textstore_tf2.smx

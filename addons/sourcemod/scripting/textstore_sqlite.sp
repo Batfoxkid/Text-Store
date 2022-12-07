@@ -829,8 +829,8 @@ public Action Timer_QueryQueue(Handle timer, DataPack pack)
 	InQuery = true;
 	pack.Reset();
 	Transaction tr = pack.ReadCell();
-	SQLTxnSuccess onSuccess = view_as<SQLTxnSuccess>(pack.ReadFunction());
-	SQLTxnFailure onError = view_as<SQLTxnFailure>(pack.ReadFunction());
+	SQLTxnSuccess onSuccess = view_as<any>(pack.ReadFunction());
+	SQLTxnFailure onError = view_as<any>(pack.ReadFunction());
 	any data = pack.ReadCell();
 	
 	#if defined DEBUG

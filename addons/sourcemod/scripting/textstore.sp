@@ -740,7 +740,9 @@ void Store(int client)
 			}
 		}
 	}
-
+	
+	Forward_OnCatalog(client);
+	
 	Menu menu = new Menu(GeneralMenuH);
 	if(primary == POS_NONE)
 	{

@@ -3,6 +3,7 @@ static GlobalForward OnDescItem;
 static GlobalForward OnClientLoad;
 static GlobalForward OnClientSave;
 static GlobalForward OnMainMenu;
+static GlobalForward OnCatalog;
 
 void Forward_PluginLoad()
 {
@@ -11,6 +12,7 @@ void Forward_PluginLoad()
 	OnClientLoad = new GlobalForward("TextStore_OnClientLoad", ET_Event, Param_Cell, Param_String);
 	OnClientSave = new GlobalForward("TextStore_OnClientSave", ET_Event, Param_Cell, Param_String);
 	OnMainMenu = new GlobalForward("TextStore_OnMainMenu", ET_Event, Param_Cell, Param_Cell);
+	OnCatalog = new GlobalForward("TextStore_OnCatalog", ET_Ignore, Param_Cell);
 }
 
 bool Forward_OnUseItem(ItemResult &result, const char[] pluginname, int client, bool equipped, KeyValues kv, int index, const char[] name, int &count, bool auto)
@@ -104,4 +106,11 @@ Action Forward_OnMainMenu(int client, Menu menu)
 	Call_PushCell(menu);
 	Call_Finish(action);
 	return action;
+}
+
+void Forward_OnCatalog(int client)
+{
+	Call_StartForward(OnCatalog);
+	Call_PushCell(client);
+	Call_Finish();
 }

@@ -74,6 +74,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	MarkNativeAsOptional("TF2Items_SetAttribute");
 	MarkNativeAsOptional("TF2Items_GiveNamedItem");
 	#endif
+	
+	return APLRes_Success;
 }
 
 public void OnPluginStart()
