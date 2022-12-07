@@ -713,7 +713,7 @@ public int MainH(Menu menu, MenuAction action, int client, int choice)
 					Trading_Command(client, 0);
 
 				default:
-					FakeClientCommand(client, "buffer");
+					FakeClientCommand(client, buffer);
 			}
 		}
 	}
