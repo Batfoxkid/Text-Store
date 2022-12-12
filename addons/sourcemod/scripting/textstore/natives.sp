@@ -21,6 +21,8 @@ void Native_PluginLoad()
 	CreateNative("TextStore_UseItem", Native_UseItem);
 	CreateNative("TextStore_GetItemHidden", Native_GetItemHidden);
 	CreateNative("TextStore_SetItemHidden", Native_SetItemHidden);
+	CreateNative("TextStore_GetItemParent", Native_GetItemParent);
+	CreateNative("TextStore_SetItemParent", Native_SetItemParent);
 }
 
 public any Native_GetInv(Handle plugin, int numParams)
@@ -381,6 +383,50 @@ public any Native_SetItemHidden(Handle plugin, int numParams)
 	ItemEnum item;
 	Items.GetArray(index, item);
 	item.Hidden = GetNativeCell(2);
+	Items.SetArray(index, item);
+	return 0;
+}
+
+public any Native_GetItemParent(Handle plugin, int numParams)
+{
+	if(Items == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
+	int index = GetNativeCell(1);
+	if(-UniqueList.Length>index || index>=Items.Length)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, index);
+
+	if(index < 0)
+	{
+		UniqueEnum unique;
+		UniqueList.GetArray(-1-index, unique);
+		index = unique.BaseItem;
+	}
+
+	ItemEnum item;
+	Items.GetArray(index, item);
+	return item.Parent;
+}
+
+public any Native_SetItemParent(Handle plugin, int numParams)
+{
+	if(Items == INVALID_HANDLE)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_NOTREADY);
+
+	int index = GetNativeCell(1);
+	if(-UniqueList.Length>index || index>=Items.Length)
+		ThrowNativeError(SP_ERROR_NATIVE, ERROR_ITEMINDEX, index);
+
+	if(index < 0)
+	{
+		UniqueEnum unique;
+		UniqueList.GetArray(-1-index, unique);
+		index = unique.BaseItem;
+	}
+
+	ItemEnum item;
+	Items.GetArray(index, item);
+	item.Parent = GetNativeCell(2);
 	Items.SetArray(index, item);
 	return 0;
 }
