@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.2.8"
+#define PLUGIN_VERSION	"1.2.9"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -209,10 +209,13 @@ public void OnConfigsExecuted()
 	}
 
 	Items = new ArrayList(sizeof(ItemEnum));
-	ReadCategory(kv, POS_NONE);
+	bool failed = ReadCategory(kv, POS_NONE);
 	delete kv;
 
 	Crafting_ConfigsExecuted();
+
+	if(failed)
+		SetFailState("Store Config File may be Invalid");
 
 	CreateTimer(60.0, Timer_AutoSave, 0, TIMER_FLAG_NO_MAPCHANGE);
 
@@ -394,40 +397,53 @@ void SaveClient(int client)
 	delete file;
 }
 
-void ReadCategory(KeyValues kv, int parent)
+bool ReadCategory(KeyValues kv, int parent)
 {
-	kv.GotoFirstSubKey();
-	int i;
+	bool errored;
+	
 	char buffer[MAX_ITEM_LENGTH];
-	do
+	if(kv.GotoFirstSubKey())
 	{
-		ItemEnum item;
-		if(!kv.GetSectionName(item.Name, sizeof(item.Name)) || !item.Name[0])
-			break;
-
-		item.Parent = parent;
-
-		kv.GetString("admin", buffer, sizeof(buffer));
-		item.Admin = ReadFlagString(buffer);
-
-		if(kv.GetNum("cost", -9999) != -9999)
+		int i;
+		do
 		{
-			item.Kv = new KeyValues(item.Name);
-			item.Kv.Import(kv);
-			item.Hidden = kv.GetFloat("hidden", HIDECHANCE)>GetRandomFloat(0.0, 0.999999);
+			ItemEnum item;
+			if(!kv.GetSectionName(item.Name, sizeof(item.Name)) || !item.Name[0])
+				break;
 
-			Items.PushArray(item);
-		}
-		else
-		{
-			item.Kv = null;
-			item.Hidden = kv.GetFloat("hidden", 0.0)>GetRandomFloat(0.0, 0.999999);
+			item.Parent = parent;
 
-			ReadCategory(kv, Items.PushArray(item));
-		}
-		i++;
-	} while(kv.GotoNextKey());
-	kv.GoBack();
+			kv.GetString("admin", buffer, sizeof(buffer));
+			item.Admin = ReadFlagString(buffer);
+
+			if(kv.GetNum("cost", -9999) != -9999)
+			{
+				item.Kv = new KeyValues(item.Name);
+				item.Kv.Import(kv);
+				item.Hidden = kv.GetFloat("hidden", HIDECHANCE)>GetRandomFloat(0.0, 0.999999);
+
+				Items.PushArray(item);
+			}
+			else
+			{
+				item.Kv = null;
+				item.Hidden = kv.GetFloat("hidden", 0.0)>GetRandomFloat(0.0, 0.999999);
+
+				if(ReadCategory(kv, Items.PushArray(item)))
+					errored = true;
+			}
+			i++;
+		} while(kv.GotoNextKey());
+		kv.GoBack();
+	}
+	else
+	{
+		kv.GetSectionName(buffer, sizeof(buffer));
+		LogError("Section '%s' is invalid in store.cfg", buffer);
+		return true;
+	}
+	
+	return errored;
 }
 
 public Action CommandMain(int client, int args)

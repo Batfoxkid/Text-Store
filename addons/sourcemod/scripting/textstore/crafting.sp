@@ -47,35 +47,42 @@ void Crafting_ConfigsExecuted()
 
 static void ReadCraftCategory(KeyValues kv, int parent)
 {
-	kv.GotoFirstSubKey();
-	int i;
 	char buffer[MAX_ITEM_LENGTH];
-	do
+	if(kv.GotoFirstSubKey())
 	{
-		CraftEnum craft;
-		if(!kv.GetSectionName(craft.Name, sizeof(craft.Name)) || !craft.Name[0])
-			break;
-
-		craft.Parent = parent;
-
-		kv.GetString("admin", buffer, sizeof(buffer));
-		craft.Admin = ReadFlagString(buffer);
-
-		if(kv.GetNum("cost", -9999) != -9999)
+		int i;
+		do
 		{
-			craft.Kv = new KeyValues(craft.Name);
-			craft.Kv.Import(kv);
+			CraftEnum craft;
+			if(!kv.GetSectionName(craft.Name, sizeof(craft.Name)) || !craft.Name[0])
+				break;
 
-			Crafts.PushArray(craft);
-		}
-		else
-		{
-			craft.Kv = null;
-			ReadCraftCategory(kv, Crafts.PushArray(craft));
-		}
-		i++;
-	} while(kv.GotoNextKey());
-	kv.GoBack();
+			craft.Parent = parent;
+
+			kv.GetString("admin", buffer, sizeof(buffer));
+			craft.Admin = ReadFlagString(buffer);
+
+			if(kv.GetNum("cost", -9999) != -9999)
+			{
+				craft.Kv = new KeyValues(craft.Name);
+				craft.Kv.Import(kv);
+
+				Crafts.PushArray(craft);
+			}
+			else
+			{
+				craft.Kv = null;
+				ReadCraftCategory(kv, Crafts.PushArray(craft));
+			}
+			i++;
+		} while(kv.GotoNextKey());
+		kv.GoBack();
+	}
+	else
+	{
+		kv.GetSectionName(buffer, sizeof(buffer));
+		LogError("Section '%s' is invalid in crafting.cfg", buffer);
+	}
 }
 
 public Action Crafting_Command(int client, int args)
