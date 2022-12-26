@@ -4,6 +4,8 @@ static GlobalForward OnClientLoad;
 static GlobalForward OnClientSave;
 static GlobalForward OnMainMenu;
 static GlobalForward OnCatalog;
+static GlobalForward OnBuyItem;
+static GlobalForward OnPriceItem;
 
 void Forward_PluginLoad()
 {
@@ -13,6 +15,8 @@ void Forward_PluginLoad()
 	OnClientSave = new GlobalForward("TextStore_OnClientSave", ET_Event, Param_Cell, Param_String);
 	OnMainMenu = new GlobalForward("TextStore_OnMainMenu", ET_Event, Param_Cell, Param_Cell);
 	OnCatalog = new GlobalForward("TextStore_OnCatalog", ET_Ignore, Param_Cell);
+	OnBuyItem = new GlobalForward("TextStore_OnBuyItem", ET_Event, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
+	OnPriceItem = new GlobalForward("TextStore_OnPriceItem", ET_Event, Param_Cell, Param_Cell, Param_CellByRef);
 }
 
 bool Forward_OnUseItem(ItemResult &result, const char[] pluginname, int client, bool equipped, KeyValues kv, int index, const char[] name, int &count, bool auto)
@@ -113,4 +117,28 @@ void Forward_OnCatalog(int client)
 	Call_StartForward(OnCatalog);
 	Call_PushCell(client);
 	Call_Finish();
+}
+
+Action Forward_OnBuyItem(int client, int item, int cash, int &count, int &cost)
+{
+	Action action = Plugin_Continue;
+	Call_StartForward(OnBuyItem);
+	Call_PushCell(client);
+	Call_PushCell(item);
+	Call_PushCell(cash);
+	Call_PushCellRef(count);
+	Call_PushCellRef(cost);
+	Call_Finish(action);
+	return action;
+}
+
+Action Forward_OnPriceItem(int client, int item, int &price)
+{
+	Action action = Plugin_Continue;
+	Call_StartForward(OnPriceItem);
+	Call_PushCell(client);
+	Call_PushCell(item);
+	Call_PushCellRef(price);
+	Call_Finish(action);
+	return action;
 }

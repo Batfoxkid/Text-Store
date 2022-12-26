@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.2.9"
+#define PLUGIN_VERSION	"1.2.10"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -1143,6 +1143,20 @@ void ViewItem(int client, int index, ItemEnum item)
 
 	int cost = item.Kv.GetNum("cost");
 	int sell = item.Kv.GetNum("sell", RoundFloat(cost*SELLRATIO));
+	
+	int cost2 = cost;
+	switch(Forward_OnPriceItem(client, index, cost2))
+	{
+		case Plugin_Changed:
+		{
+			cost = cost2;
+		}
+		case Plugin_Handled, Plugin_Stop:
+		{
+			cost = 0;
+		}
+	}
+	
 	if(cost > 0)
 	{
 		FormatEx(buffer, sizeof(buffer), "Buy (%d Credits)", cost);
@@ -1202,6 +1216,27 @@ public int ViewItemH(Menu panel, MenuAction action, int client, int choice)
 		case 2:
 		{
 			int cost = item.Kv.GetNum("cost");
+			
+			int count = item.Count[client];
+			int cost2 = cost;
+			switch(Forward_OnBuyItem(client, index, Client[client].Cash, count, cost2))
+			{
+				case Plugin_Changed:
+				{
+					cost = cost2;
+					item.Count[client] = count;
+				}
+				case Plugin_Handled:
+				{
+					item.Count[client] = count;
+					cost = 0;
+				}
+				case Plugin_Stop:
+				{
+					cost = 0;
+				}
+			}
+			
 			if(cost>0 && !item.Hidden && (item.Kv.GetNum("stack", 1) || item.Count[client]<1) && Client[client].Cash>=cost)
 			{
 				item.Count[client]++;

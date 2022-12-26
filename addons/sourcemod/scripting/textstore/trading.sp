@@ -580,6 +580,20 @@ static void TradingInv(int client)
 		clientHas = item.Count[client]>0;
 
 	int cost = item.Kv.GetNum("cost");
+		
+	int cost2 = cost;
+	switch(Forward_OnPriceItem(client, primary, cost2))
+	{
+		case Plugin_Changed:
+		{
+			cost = cost2;
+		}
+		case Plugin_Handled, Plugin_Stop:
+		{
+			cost = 0;
+		}
+	}
+	
 	if(cost>0 && !item.Hidden)
 	{
 		FormatEx(buffer, sizeof(buffer), "Buy Price: %d Credits", cost);
