@@ -271,7 +271,7 @@ forward Action TextStore_OnMainMenu(int client, Menu menu);
  *
  * @noreturn
  */
-forward void TextStore_OnCatalog(int client, Menu menu);
+forward void TextStore_OnCatalog(int client);
 
 /**
  * Called when a client is about to buy an item

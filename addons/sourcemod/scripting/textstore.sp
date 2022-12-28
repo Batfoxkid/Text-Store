@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.2.10"
+#define PLUGIN_VERSION	"1.2.11"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -1116,6 +1116,8 @@ public int GeneralMenuH(Menu menu, MenuAction action, int client, int choice)
 
 void ViewItem(int client, int index, ItemEnum item)
 {
+	Forward_OnCatalog(client);
+	
 	Panel panel = new Panel();
 
 	char buffer[MAX_DESC_LENGTH];
@@ -1197,7 +1199,8 @@ public int ViewItemH(Menu panel, MenuAction action, int client, int choice)
 {
 	if(action != MenuAction_Select)
 		return 0;
-
+	
+	Forward_OnCatalog(client);
 	int index = Client[client].GetPos();
 	ItemEnum item;
 	Items.GetArray(index, item);
