@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.2.11"
+#define PLUGIN_VERSION	"1.2.12"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -460,6 +460,12 @@ public Action CommandMain(int client, int args)
 		return Plugin_Handled;
 	}
 
+	if(args)
+	{
+		LookupItemMenu(client, 0);
+		return Plugin_Handled;
+	}
+
 	//Client[client].StoreType = Type_Main;
 	Main(client);
 	return Plugin_Handled;
@@ -479,12 +485,17 @@ public Action CommandStore(int client, int args)
 		return Plugin_Handled;
 	}
 
-
 	Client[client].BackOutAdmin = (args==-1);
 	if(Client[client].StoreType != Type_Store)
 	{
 		Client[client].ClearPos();
 		Client[client].StoreType = Type_Store;
+	}
+
+	if(args)
+	{
+		LookupItemMenu(client, 1);
+		return Plugin_Handled;
 	}
 
 	Store(client);
@@ -505,12 +516,17 @@ public Action CommandInven(int client, int args)
 		return Plugin_Handled;
 	}
 
-
 	Client[client].BackOutAdmin = (args==-1);
 	if(Client[client].StoreType != Type_Inven)
 	{
 		Client[client].ClearPos();
 		Client[client].StoreType = Type_Inven;
+	}
+
+	if(args)
+	{
+		LookupItemMenu(client, 2);
+		return Plugin_Handled;
 	}
 
 	Inventory(client);
@@ -780,7 +796,7 @@ void Store(int client)
 		found = true;
 		static char buffer[MAX_NUM_LENGTH];
 		IntToString(i, buffer, sizeof(buffer));
-		menu.AddItem(buffer, item.Name, CheckCommandAccess(client, "textstore_all", item.Admin, true) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+		menu.AddItem(buffer, item.Name, (item.Count[client] || CheckCommandAccess(client, "textstore_all", item.Admin, true)) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	}
 
 	if(!found)
@@ -1384,4 +1400,67 @@ public Action Timer_AutoSave(Handle timer, int temp)
 
 	CreateTimer(10.0, Timer_AutoSave, client, TIMER_FLAG_NO_MAPCHANGE);
 	return Plugin_Continue;
+}
+
+void LookupItemMenu(int client, int type)
+{
+	static char key[256];
+	GetCmdArgString(key, sizeof(key));
+
+	Forward_OnCatalog(client);
+
+	Menu menu = new Menu(GeneralMenuH);
+	menu.SetTitle("%s\n ", key);
+
+	ReplaceString(key, sizeof(key), "\"", "");
+
+	bool found;
+	ItemEnum item;
+	int length = Items.Length;
+	for(int i; i<length; i++)
+	{
+		static char buffer[MAX_DESC_LENGTH];
+		Items.GetArray(i, item);
+		if(StrContains(item.Name, key, false) == -1)
+		{
+			if(!item.Kv)
+				continue;
+
+			item.Kv.Rewind();
+			item.Kv.GetString("desc", buffer, sizeof(buffer));
+			if(!buffer[0] || StrContains(buffer, key, false) == -1)
+				continue;
+		}
+
+		bool owned = view_as<bool>(item.Count[client]);
+		switch(type)
+		{
+			case 1:
+			{
+				if(item.Hidden)
+					continue;
+			}
+			case 2:
+			{
+				if(!owned)
+					continue;
+			}
+			default:
+			{
+				if(!owned && item.Hidden)
+					continue;
+			}
+		}
+
+		found = true;
+		IntToString(i, buffer, sizeof(buffer));
+		menu.AddItem(buffer, item.Name, (owned || CheckCommandAccess(client, "textstore_all", item.Admin, true)) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+	}
+
+	if(!found)
+		menu.AddItem("", "No Items", ITEMDRAW_DISABLED);
+
+	menu.ExitBackButton = true;
+	menu.ExitButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
 }
