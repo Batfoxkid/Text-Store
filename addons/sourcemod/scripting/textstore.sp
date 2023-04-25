@@ -1,6 +1,7 @@
 #pragma semicolon 1
 
 #include <sourcemod>
+#tryinclude <menus-controller>
 #include <clientprefs>
 #include <sdktools_voice>
 #undef REQUIRE_PLUGIN
@@ -246,15 +247,19 @@ public void OnClientPostAdminCheck(int client)
 void SetupClient(int client)
 {
 	ItemEnum item;
-	int length = Items.Length;
-	for(int i; i<length; i++)
+	int length;
+	if(Items)
 	{
-		Items.GetArray(i, item);
-		item.Count[client] = 0;
-		Items.SetArray(i, item);
+		length = Items.Length;
+		for(int i; i<length; i++)
+		{
+			Items.GetArray(i, item);
+			item.Count[client] = 0;
+			Items.SetArray(i, item);
+		}
 	}
 
-	if(IsFakeClient(client))
+	if(!Items || IsFakeClient(client))
 		return;
 
 	Action action;
