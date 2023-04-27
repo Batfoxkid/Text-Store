@@ -12,7 +12,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.2.12"
+#define PLUGIN_VERSION	"1.2.13"
 
 #define MAX_ITEM_LENGTH	48
 #define MAX_DATA_LENGTH	256
@@ -281,54 +281,53 @@ void SetupClient(int client)
 		return;
 
 	Client[client].Ready = true;
-	if(action == Plugin_Handled)
-		return;
-
-	if(!FileExists(buffer))
-		return;
-
-	File file = OpenFile(buffer, "r");
-	if(!file)
-		return;
-
-	static char buffers[4][MAX_DATA_LENGTH];
-	while(!file.EndOfFile() && file.ReadLine(buffer, sizeof(buffer)))
+	if(action != Plugin_Handled && FileExists(buffer))
 	{
-		ReplaceString(buffer, sizeof(buffer), "\n", "");
-		int count = ExplodeString(buffer, ";", buffers, sizeof(buffers), sizeof(buffers[]));
-		if(count < 2)
-			continue;
-
-		if(StrEqual(buffers[0], "cash"))
+		File file = OpenFile(buffer, "r");
+		if(file)
 		{
-			Client[client].Cash = StringToInt(buffers[1]);
-			continue;
-		}
-
-		for(int i; i<length; i++)
-		{
-			Items.GetArray(i, item);
-			if(!StrEqual(buffers[0], item.Name, false))
-				continue;
-
-			if(count > 3)
+			static char buffers[4][MAX_DATA_LENGTH];
+			while(!file.EndOfFile() && file.ReadLine(buffer, sizeof(buffer)))
 			{
-				int index = Unique_AddItem(i, client, false, buffers[1], buffers[3]);
-				if(StringToInt(buffers[2]))
-					Unique_UseItem(client, index, true);
-			}
-			else
-			{
-				item.Count[client] += StringToInt(buffers[1]);
-				if(StringToInt(buffers[2]))
-					UseThisItem(client, i, item, true);
+				ReplaceString(buffer, sizeof(buffer), "\n", "");
+				int count = ExplodeString(buffer, ";", buffers, sizeof(buffers), sizeof(buffers[]));
+				if(count < 2)
+					continue;
 
-				Items.SetArray(i, item);
+				if(StrEqual(buffers[0], "cash"))
+				{
+					Client[client].Cash = StringToInt(buffers[1]);
+					continue;
+				}
+
+				for(int i; i<length; i++)
+				{
+					Items.GetArray(i, item);
+					if(!StrEqual(buffers[0], item.Name, false))
+						continue;
+
+					if(count > 3)
+					{
+						int index = Unique_AddItem(i, client, false, buffers[1], buffers[3]);
+						if(StringToInt(buffers[2]))
+							Unique_UseItem(client, index, true);
+					}
+					else
+					{
+						item.Count[client] += StringToInt(buffers[1]);
+						if(StringToInt(buffers[2]))
+							UseThisItem(client, i, item, true);
+
+						Items.SetArray(i, item);
+					}
+					break;
+				}
 			}
-			break;
+			delete file;
 		}
 	}
-	delete file;
+	
+	Forward_OnClientLoaded(client, buffer);
 }
 
 public void OnClientDisconnect(int client)
@@ -400,6 +399,8 @@ void SaveClient(int client)
 		}
 	}
 	delete file;
+	
+	Forward_OnClientSaved(client, buffer);
 }
 
 bool ReadCategory(KeyValues kv, int parent)
@@ -1403,7 +1404,7 @@ public Action Timer_AutoSave(Handle timer, int temp)
 	if(IsValidClient(client) && Client[client].Ready)
 		SaveClient(client);
 
-	CreateTimer(10.0, Timer_AutoSave, client, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(20.0, Timer_AutoSave, client, TIMER_FLAG_NO_MAPCHANGE);
 	return Plugin_Continue;
 }
 

@@ -6,7 +6,7 @@
 #pragma newdecls required
 
 //#define DEBUG
-#define PLUGIN_VERSION	"1.3"
+#define PLUGIN_VERSION	"1.4"
 
 ConVar CvarBackup;
 Database DataBase;
@@ -24,6 +24,17 @@ public Plugin myinfo =
 	description	=	"Text Files to MySQL",
 	version		=	PLUGIN_VERSION
 };
+
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	CreateNative("_textstore_saveaddon", _textstore_saveaddon);
+	return APLRes_Success;
+}
+
+public any _textstore_saveaddon(Handle plugin, int numParams)
+{
+	return 0;
+}
 
 public void OnPluginStart()
 {

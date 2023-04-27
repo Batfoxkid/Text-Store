@@ -1,7 +1,9 @@
 static GlobalForward OnSellItem;
 static GlobalForward OnDescItem;
 static GlobalForward OnClientLoad;
+static GlobalForward OnClientLoaded;
 static GlobalForward OnClientSave;
+static GlobalForward OnClientSaved;
 static GlobalForward OnMainMenu;
 static GlobalForward OnCatalog;
 static GlobalForward OnBuyItem;
@@ -12,7 +14,9 @@ void Forward_PluginLoad()
 	OnSellItem = new GlobalForward("TextStore_OnSellItem", ET_Event, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 	OnDescItem = new GlobalForward("TextStore_OnDescItem", ET_Ignore, Param_Cell, Param_Cell, Param_String);
 	OnClientLoad = new GlobalForward("TextStore_OnClientLoad", ET_Event, Param_Cell, Param_String);
+	OnClientLoaded = new GlobalForward("TextStore_OnClientLoaded", ET_Ignore, Param_Cell, Param_String);
 	OnClientSave = new GlobalForward("TextStore_OnClientSave", ET_Event, Param_Cell, Param_String);
+	OnClientSaved = new GlobalForward("TextStore_OnClientSaved", ET_Ignore, Param_Cell, Param_String);
 	OnMainMenu = new GlobalForward("TextStore_OnMainMenu", ET_Event, Param_Cell, Param_Cell);
 	OnCatalog = new GlobalForward("TextStore_OnCatalog", ET_Ignore, Param_Cell);
 	OnBuyItem = new GlobalForward("TextStore_OnBuyItem", ET_Event, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
@@ -92,6 +96,14 @@ Action Forward_OnClientLoad(int client, char file[512])
 	return action;
 }
 
+void Forward_OnClientLoaded(int client, const char[] file)
+{
+	Call_StartForward(OnClientLoaded);
+	Call_PushCell(client);
+	Call_PushString(file);
+	Call_Finish();
+}
+
 Action Forward_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 {
 	Action action = Plugin_Continue;
@@ -100,6 +112,14 @@ Action Forward_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 	Call_PushStringEx(file, sizeof(file), SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_Finish(action);
 	return action;
+}
+
+void Forward_OnClientSaved(int client, const char[] file)
+{
+	Call_StartForward(OnClientSaved);
+	Call_PushCell(client);
+	Call_PushString(file);
+	Call_Finish();
 }
 
 Action Forward_OnMainMenu(int client, Menu menu)

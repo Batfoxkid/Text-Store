@@ -245,6 +245,16 @@ forward void TextStore_OnDescItem(int client, int item, char[] desc);
 forward Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH]);
 
 /**
+ * Called when a client's items are loaded into cache
+ *
+ * @param client	Client index
+ * @param file		TextStore save file
+ *
+ * @noreturn
+ */
+forward void TextStore_OnClientLoaded(int client, const char[] file);
+
+/**
  * Called when a client's items are saving into a file
  *
  * @param client	Client index
@@ -253,6 +263,16 @@ forward Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH]);
  * @return		Plugin_Changed to change the filepath, Plugin_Handled/Plugin_Stop to not save items
  */
 forward Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH]);
+
+/**
+ * Called when a client's items are saved into a file
+ *
+ * @param client	Client index
+ * @param file		TextStore save file
+ *
+ * @noreturn
+ */
+forward void TextStore_OnClientSaved(int client, const char[] file);
 
 /**
  * Called when a client enters the main menu
