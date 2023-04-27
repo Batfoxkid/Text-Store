@@ -6,7 +6,14 @@
 #pragma newdecls required
 
 //#define DEBUG
-#define PLUGIN_VERSION	"1.4"
+#define PLUGIN_VERSION	"1.5"
+
+enum struct LastItem
+{
+	int Item;
+	int Count;
+	bool Equipped;
+}
 
 ConVar CvarBackup;
 Database DataBase;
@@ -117,17 +124,8 @@ public Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
 	if(IgnoreLoad)
 		return Plugin_Continue;
 	
-	if(LastItems[client])
-	{
-		delete LastItems[client];
-		LastItems[client] = null;
-	}
-	
-	if(LastUnique[client])
-	{
-		delete LastUnique[client];
-		LastUnique[client] = null;
-	}
+	delete LastItems[client];
+	delete LastUnique[client];
 	
 	if(DataBase)
 	{
@@ -162,14 +160,10 @@ public void Database_ClientSetup1(Database db, any userid, int numQueries, DBRes
 	int client = GetClientOfUserId(userid);
 	if(client)
 	{
-		if(LastItems[client])
-			delete LastItems[client];
+		delete LastItems[client];
+		LastItems[client] = new ArrayList(sizeof(LastItem));
 		
-		LastItems[client] = new ArrayList();
-		
-		if(LastUnique[client])
-			delete LastUnique[client];
-		
+		delete LastUnique[client];
 		LastUnique[client] = new ArrayList(ByteCountToCells(48));
 		
 		static char data[256];
@@ -301,7 +295,8 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 		
 		tr = new Transaction();
 		
-		ArrayList list = new ArrayList();
+		LastItem last;
+		ArrayList list = new ArrayList(sizeof(LastItem));
 		
 		int amount;
 		int uniques;
@@ -309,7 +304,8 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 		for(int i; i<items; i++)
 		{
 			bool equipped = TextStore_GetInv(client, i, amount);
-			if(LastItems[client].FindValue(i) == -1)
+			int index = LastItems[client].FindValue(i, LastItem::Item);
+			if(index == -1)
 			{
 				if(amount > 0)
 				{
@@ -317,16 +313,22 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 					DataBase.Format(buffer, sizeof(buffer), "INSERT INTO common_items (steamid, item, count, equip) VALUES ('%d', '%s', '%d', '%d')", id, buffer, amount, equipped);
 					
 					tr.AddQuery(buffer);
-					list.Push(i);
+				}
+				else
+				{
+					continue;
 				}
 			}
 			else if(amount > 0)
 			{
-				TextStore_GetItemName(i, buffer, sizeof(buffer));
-				DataBase.Format(buffer, sizeof(buffer), "UPDATE common_items SET count = '%d', equip = '%d' WHERE steamid = %d AND item = '%s';", amount, equipped, id, buffer);
-				
-				tr.AddQuery(buffer);
-				list.Push(i);
+				LastItems[client].GetArray(index, last);
+				if(last.Count != amount || last.Equipped != equipped)
+				{
+					TextStore_GetItemName(i, buffer, sizeof(buffer));
+					DataBase.Format(buffer, sizeof(buffer), "UPDATE common_items SET count = '%d', equip = '%d' WHERE steamid = %d AND item = '%s';", amount, equipped, id, buffer);
+					
+					tr.AddQuery(buffer);
+				}
 			}
 			else
 			{
@@ -334,7 +336,13 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 				DataBase.Format(buffer, sizeof(buffer), "DELETE FROM common_items WHERE steamid = %d AND item = '%s';", id, buffer);
 				
 				tr.AddQuery(buffer);
+				continue;
 			}
+			
+			last.Item = i;
+			last.Count = amount;
+			last.Equipped = equipped;
+			list.PushArray(last);
 		}
 		
 		AddToQueryQueue(tr, Database_Success, Database_Fail);
@@ -706,6 +714,7 @@ void GiveNamedItem(int client, const char[] item, int amount, bool equipped)
 	PrintToServer("GiveNamedItem");
 	#endif
 	
+	LastItem last;
 	int items = TextStore_GetItems();
 	for(int i; i<items; i++)
 	{
@@ -717,7 +726,10 @@ void GiveNamedItem(int client, const char[] item, int amount, bool equipped)
 			if(equipped)
 				TextStore_UseItem(client, i, true);
 			
-			LastItems[client].Push(i);
+			last.Item = i;
+			last.Count = amount;
+			last.Equipped = false;
+			LastItems[client].PushArray(last);
 			break;
 		}
 	}
