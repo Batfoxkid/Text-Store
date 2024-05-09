@@ -6,7 +6,7 @@
 #pragma newdecls required
 
 //#define DEBUG
-#define PLUGIN_VERSION	"1.5"
+#define PLUGIN_VERSION	"1.6"
 
 enum struct LastItem
 {
@@ -15,12 +15,21 @@ enum struct LastItem
 	bool Equipped;
 }
 
+enum struct QueryEnum
+{
+	Transaction Tr;
+	SQLTxnSuccess OnSuccess;
+	SQLTxnFailure OnError;
+	any Data;
+	DBPriority Priority;
+}
+
 ConVar CvarBackup;
 Database DataBase;
 bool IgnoreLoad;
 bool InQuery;
-int QueryCount;
 bool DeleteConvert;
+ArrayList QueryQueue;
 ArrayList LastItems[MAXPLAYERS];
 ArrayList LastUnique[MAXPLAYERS];
 
@@ -151,7 +160,7 @@ public Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
 
 public void Database_ClientSetup1(Database db, any userid, int numQueries, DBResultSet[] results, any[] queryData)
 {
-	InQuery = false;
+	StartNextQuery();
 	
 	#if defined DEBUG
 	PrintToServer("Database_ClientSetup1");
@@ -210,7 +219,7 @@ public void Database_ClientSetup1(Database db, any userid, int numQueries, DBRes
 
 public void Database_ClientSetup2(Database db, any userid, int numQueries, DBResultSet[] results, any[] queryData)
 {
-	InQuery = false;
+	StartNextQuery();
 	
 	#if defined DEBUG
 	PrintToServer("Database_ClientSetup2");
@@ -245,7 +254,7 @@ public void Database_ClientSetup2(Database db, any userid, int numQueries, DBRes
 
 public void Database_ClientSetup3(Database db, any userid, int numQueries, DBResultSet[] results, any[] queryData)
 {
-	InQuery = false;
+	StartNextQuery();
 	
 	#if defined DEBUG
 	PrintToServer("Database_ClientSetup3");
@@ -273,7 +282,7 @@ public void Database_ClientSetup3(Database db, any userid, int numQueries, DBRes
 
 public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 {
-	InQuery = false;
+	//StartNextQuery();
 	
 	#if defined DEBUG
 	PrintToServer("TextStore_OnClientSave");
@@ -499,7 +508,7 @@ public Action Command_Check(int args)
 
 public void Database_Check1(Database db, any id, int numQueries, DBResultSet[] results, any[] queryData)
 {
-	InQuery = false;
+	StartNextQuery();
 	
 	if(results[0].FetchRow())
 	{
@@ -521,7 +530,7 @@ public void Database_Check1(Database db, any id, int numQueries, DBResultSet[] r
 
 public void Database_Check2(Database db, any id, int numQueries, DBResultSet[] results, any[] queryData)
 {
-	InQuery = false;
+	StartNextQuery();
 	
 	char buffer[256];
 	while(results[0].MoreRows)
@@ -543,7 +552,7 @@ public void Database_Check2(Database db, any id, int numQueries, DBResultSet[] r
 
 public void Database_Check3(Database db, any id, int numQueries, DBResultSet[] results, any[] queryData)
 {
-	InQuery = false;
+	StartNextQuery();
 	
 	char item[48], name[48], data[256];
 	while(results[0].MoreRows)
@@ -630,33 +639,34 @@ public Action Command_Modify(int args)
 
 public void Database_Success(Database db, any data, int numQueries, DBResultSet[] results, any[] queryData)
 {
-	InQuery = false;
-	
 	#if defined DEBUG
 	PrintToServer("Database_Success");
 	#endif
+	
+	StartNextQuery();
 }
 
 public void Database_Fail(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)
 {
-	InQuery = false;
-	
 	#if defined DEBUG
 	PrintToServer("Database_Fail");
 	#endif
 	
 	LogError(error);
+	
+	StartNextQuery();
 }
 
 public void Database_FailPrint(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)
 {
-	InQuery = false;
 	PrintToServer(error);
+	
+	StartNextQuery();
 }
 
 public Action Timer_Convert(Handle timer, DirectoryListing dir)
 {
-	if(QueryCount > 10)
+	if(QueryQueue.Length > 10)
 		return Plugin_Continue;
 	
 	FileType type;
@@ -830,45 +840,44 @@ int PortFileToSQL(File file, int steamid)
 
 void AddToQueryQueue(Transaction tr, SQLTxnSuccess onSuccess = INVALID_FUNCTION, SQLTxnFailure onError = INVALID_FUNCTION, any data = 0, DBPriority priority = DBPrio_Normal)
 {
-	QueryCount++;
-	
 	#if defined DEBUG
 	PrintToServer("Timer_QueryQueue -> New Added");
 	#endif
 	
-	DataPack pack;
-	CreateDataTimer(0.3, Timer_QueryQueue, pack, TIMER_REPEAT);
-	pack.WriteCell(tr);
-	pack.WriteFunction(onSuccess);
-	pack.WriteFunction(onError);
-	pack.WriteCell(data);
-	pack.WriteCell(priority);
+	if(!QueryQueue)
+		QueryQueue = new ArrayList(sizeof(QueryEnum));
+	
+	QueryEnum query;
+	query.Tr = tr;
+	query.OnSuccess = onSuccess;
+	query.OnError = onError;
+	query.Data = data;
+	query.Priority = priority;
+	QueryQueue.PushArray(query);
+	
+	if(!InQuery)
+		StartNextQuery();
 }
 
-public Action Timer_QueryQueue(Handle timer, DataPack pack)
+void StartNextQuery()
 {
-	#if defined DEBUG
-	PrintToServer("Timer_QueryQueue -> Pending");
-	#endif
-	
-	if(InQuery)
-		return Plugin_Continue;
-	
-	QueryCount--;
+	if(!QueryQueue.Length)
+	{
+		InQuery = false;
+		return;
+	}
 	
 	InQuery = true;
-	pack.Reset();
-	Transaction tr = pack.ReadCell();
-	SQLTxnSuccess onSuccess = view_as<any>(pack.ReadFunction());
-	SQLTxnFailure onError = view_as<any>(pack.ReadFunction());
-	any data = pack.ReadCell();
+	
+	QueryEnum query;
+	QueryQueue.GetArray(0, query);
+	QueryQueue.Erase(0);
 	
 	#if defined DEBUG
-	PrintToServer("Timer_QueryQueue -> Started New | %x %d %d", tr, view_as<int>(onSuccess), view_as<int>(onError));
+	PrintToServer("Timer_QueryQueue -> Started New | %x %d %d", query.Tr, view_as<int>(query.OnSuccess), view_as<int>(query.OnError));
 	#endif
 	
-	DataBase.Execute(tr, onSuccess, onError, data, pack.ReadCell());
-	return Plugin_Stop;
+	DataBase.Execute(query.Tr, query.OnSuccess, query.OnError, query.Data, query.Priority);
 }
 
 /*
