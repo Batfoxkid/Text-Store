@@ -26,5 +26,6 @@ jobs:
           ./spcomp -E textstore.sp -o ../plugins/textstore.smx
           ./spcomp -E textstore_defaults.sp -o ../plugins/textstore_defaults.smx
           ./spcomp -E textstore_generic.sp -o ../plugins/textstore_generic.smx
-          ./spcomp textstore_sqlite.sp -o ../plugins/textstore_sqlite.smx
+          ./spcomp -E textstore_sqlite.sp -o ../plugins/textstore_sqlite.smx
+          ./spcomp -E textstore_mysql.sp -o ../plugins/textstore_mysql.smx
           ./spcomp -E textstore_tf2.sp -o ../plugins/textstore_tf2.smx
