@@ -8,6 +8,7 @@ static GlobalForward OnMainMenu;
 static GlobalForward OnCatalog;
 static GlobalForward OnBuyItem;
 static GlobalForward OnPriceItem;
+static GlobalForward OnImportConfig;
 
 void Forward_PluginLoad()
 {
@@ -21,6 +22,7 @@ void Forward_PluginLoad()
 	OnCatalog = new GlobalForward("TextStore_OnCatalog", ET_Ignore, Param_Cell);
 	OnBuyItem = new GlobalForward("TextStore_OnBuyItem", ET_Event, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 	OnPriceItem = new GlobalForward("TextStore_OnPriceItem", ET_Event, Param_Cell, Param_Cell, Param_CellByRef);
+	OnImportConfig = new GlobalForward("TextStore_OnImportConfig", ET_Event, Param_String);
 }
 
 bool Forward_OnUseItem(ItemResult &result, const char[] pluginname, int client, bool equipped, KeyValues kv, int index, const char[] name, int &count, bool auto)
@@ -159,6 +161,15 @@ Action Forward_OnPriceItem(int client, int item, int &price)
 	Call_PushCell(client);
 	Call_PushCell(item);
 	Call_PushCellRef(price);
+	Call_Finish(action);
+	return action;
+}
+
+Action Forward_OnImportFile(char file[PLATFORM_MAX_PATH])
+{
+	Action action = Plugin_Continue;
+	Call_StartForward(OnImportConfig);
+	Call_PushStringEx(file, sizeof(file), SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_Finish(action);
 	return action;
 }

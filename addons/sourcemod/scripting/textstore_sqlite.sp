@@ -22,7 +22,6 @@ bool InQuery;
 int QueryCount;
 bool DeleteConvert;
 ArrayList LastItems[MAXPLAYERS];
-ArrayList LastUnique[MAXPLAYERS];
 
 public Plugin myinfo =
 {
@@ -118,7 +117,6 @@ public Action TextStore_OnClientLoad(int client, char file[PLATFORM_MAX_PATH])
 		return Plugin_Continue;
 	
 	delete LastItems[client];
-	delete LastUnique[client];
 	
 	if(DataBase)
 	{
@@ -155,9 +153,6 @@ public void Database_ClientSetup1(Database db, any userid, int numQueries, DBRes
 	{
 		delete LastItems[client];
 		LastItems[client] = new ArrayList(sizeof(LastItem));
-		
-		delete LastUnique[client];
-		LastUnique[client] = new ArrayList(ByteCountToCells(48));
 		
 		static char data[256];
 		if(results[0].FetchRow())
@@ -349,27 +344,8 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 			
 			uniques = -uniques;
 			
-			if(LastUnique[client])
-			{
-				int length = LastUnique[client].Length;
-				for(int i; i<length; i++)
-				{
-					LastUnique[client].GetString(i, buffer, sizeof(buffer));
-					DataBase.Format(buffer, sizeof(buffer), "DELETE FROM unique_items WHERE steamid = %d AND item = '%s';", id, buffer);
-					
-					tr.AddQuery(buffer);
-				}
-				
-				delete LastUnique[client];
-			}
-			else
-			{
-				FormatEx(buffer, sizeof(buffer), "DELETE FROM unique_items WHERE steamid = %d;", id);
-				
-				tr.AddQuery(buffer);
-			}
-			
-			LastUnique[client] = new ArrayList(ByteCountToCells(48));
+			FormatEx(buffer, sizeof(buffer), "DELETE FROM unique_items WHERE steamid = %d;", id);
+			tr.AddQuery(buffer);
 			
 			char item[48], name[48];
 			for(int i=-1; i>=uniques; i--)
@@ -388,8 +364,6 @@ public Action TextStore_OnClientSave(int client, char file[PLATFORM_MAX_PATH])
 						DataBase.Format(buffer, sizeof(buffer), "INSERT INTO unique_items (steamid, item, name, equip, data) VALUES ('%d', '%s', '%s', '%d', '%s')", id, item, name, equipped, buffer);
 						
 						tr.AddQuery(buffer);
-						
-						LastUnique[client].PushString(item);
 					}
 					else
 					{
@@ -744,9 +718,6 @@ void GiveNamedUnique(int client, const char[] item, const char[] name, bool equi
 			int id = TextStore_CreateUniqueItem(client, i, data, name, false);
 			if(equipped)
 				TextStore_UseItem(client, id, true);
-			
-			if(LastUnique[client].FindString(buffer) == -1)
-				LastUnique[client].PushString(buffer);
 			
 			break;
 		}

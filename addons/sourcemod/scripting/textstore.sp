@@ -192,9 +192,34 @@ public void OnConfigsExecuted()
 	if(!DirExists(buffer))
 		CreateDirectory(buffer, FPERM_DEFAULT);
 	
-	BuildPath(Path_SM, buffer, sizeof(buffer), DATA_STORE);
+	ImportStoreConfig();
+}
+
+static void ImportStoreConfig()
+{
+	char buffer1[PLATFORM_MAX_PATH], buffer2[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, buffer1, sizeof(buffer1), DATA_STORE);
+	strcopy(buffer2, sizeof(buffer2), buffer1);
+	
+	switch(Forward_OnImportFile(buffer2))
+	{
+		case Plugin_Changed:
+		{
+			strcopy(buffer1, sizeof(buffer1), buffer2);
+		}
+		case Plugin_Handled:
+		{
+			RequestFrame(ImportStoreConfig);
+			return;
+		}
+		case Plugin_Stop:
+		{
+			return;
+		}
+	}
+	
 	KeyValues kv = new KeyValues("");
-	kv.ImportFromFile(buffer);
+	kv.ImportFromFile(buffer1);
 
 	if(Items != INVALID_HANDLE)
 	{
@@ -216,7 +241,7 @@ public void OnConfigsExecuted()
 	Crafting_ConfigsExecuted();
 
 	if(failed)
-		SetFailState("Store Config File may be Invalid");
+		SetFailState("'%s' may be invalid", buffer1);
 
 	CreateTimer(60.0, Timer_AutoSave, 0, TIMER_FLAG_NO_MAPCHANGE);
 
@@ -1163,7 +1188,7 @@ void ViewItem(int client, int index, ItemEnum item)
 	}
 	panel.DrawText(buffer);
 
-	panel.DrawItem((item.Count[client]>0 && item.Equip[client]) ? "Disactivate Item" : "Activate Item", item.Count[client]>0 ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+	panel.DrawItem((item.Count[client]>0 && item.Equip[client]) ? "Deactivate Item" : "Activate Item", item.Count[client]>0 ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 
 	int cost = item.Kv.GetNum("cost");
 	int sell = item.Kv.GetNum("sell", RoundFloat(cost*SELLRATIO));
